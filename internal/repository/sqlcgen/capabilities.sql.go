@@ -9,6 +9,64 @@ import (
 	"context"
 )
 
+const listProfileCapabilities = `-- name: ListProfileCapabilities :many
+SELECT pc.production_model,
+       pc.usual_min_order_qty, pc.usual_max_order_qty,
+       pc.sample_supported,
+       pc.usual_sample_lead_days_min, pc.usual_sample_lead_days_max,
+       pc.usual_production_lead_days_min, pc.usual_production_lead_days_max,
+       c.slug AS category_slug, c.name_vi AS category_name
+FROM profile_capabilities pc
+JOIN categories c ON c.id = pc.category_id
+WHERE pc.profile_id = $1
+ORDER BY c.sort_order, c.name_vi, pc.production_model
+`
+
+type ListProfileCapabilitiesRow struct {
+	ProductionModel            ProductionModel
+	UsualMinOrderQty           *int32
+	UsualMaxOrderQty           *int32
+	SampleSupported            bool
+	UsualSampleLeadDaysMin     *int32
+	UsualSampleLeadDaysMax     *int32
+	UsualProductionLeadDaysMin *int32
+	UsualProductionLeadDaysMax *int32
+	CategorySlug               string
+	CategoryName               string
+}
+
+// Capabilities của một profile kèm tên category (cho trang detail).
+func (q *Queries) ListProfileCapabilities(ctx context.Context, profileID int64) ([]ListProfileCapabilitiesRow, error) {
+	rows, err := q.db.Query(ctx, listProfileCapabilities, profileID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListProfileCapabilitiesRow
+	for rows.Next() {
+		var i ListProfileCapabilitiesRow
+		if err := rows.Scan(
+			&i.ProductionModel,
+			&i.UsualMinOrderQty,
+			&i.UsualMaxOrderQty,
+			&i.SampleSupported,
+			&i.UsualSampleLeadDaysMin,
+			&i.UsualSampleLeadDaysMax,
+			&i.UsualProductionLeadDaysMin,
+			&i.UsualProductionLeadDaysMax,
+			&i.CategorySlug,
+			&i.CategoryName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const upsertCapability = `-- name: UpsertCapability :exec
 INSERT INTO profile_capabilities (
   profile_id, category_id, production_model, usual_min_order_qty, sample_supported

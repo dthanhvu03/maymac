@@ -11,6 +11,29 @@ ON CONFLICT (slug) DO UPDATE
       featured      = EXCLUDED.featured
 RETURNING id;
 
+-- name: GetPublishedProfileBySlug :one
+-- Detail công khai — chỉ profile published.
+SELECT p.id, p.slug, p.kind, p.name, p.tagline, p.description,
+       p.province_code, p.district_id, p.address,
+       p.contact_name, p.contact_phone, p.contact_zalo, p.contact_email,
+       p.website_url, p.facebook_url,
+       p.established_year, p.worker_count, p.production_line_count,
+       p.verification_level, p.last_verified_at, p.featured
+FROM profiles p
+WHERE p.slug = $1 AND p.status = 'published';
+
+-- name: ResolveProfileRedirect :one
+-- old_slug -> canonical slug hiện tại (redirect 1 bước, §12.8).
+SELECT p.slug
+FROM profile_slug_redirects r
+JOIN profiles p ON p.id = r.profile_id
+WHERE r.old_slug = $1;
+
+-- name: UpsertProfileRedirect :exec
+INSERT INTO profile_slug_redirects (old_slug, profile_id)
+VALUES ($1, $2)
+ON CONFLICT (old_slug) DO UPDATE SET profile_id = EXCLUDED.profile_id;
+
 -- name: ListPublishedProfiles :many
 -- List công khai: chỉ profile published. Filter capability bằng semi-join EXISTS
 -- (KHÔNG JOIN+DISTINCT) để phân trang/sort ổn định ở tầng profile (§12.6).

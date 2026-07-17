@@ -97,30 +97,58 @@ func seedDemo(ctx context.Context, logger *slog.Logger, locationRepo *repository
 		catIDBySlug[c.Slug] = c.ID
 	}
 
-	var profileCount, capCount int
+	var profileCount, capCount, redirectCount int
 	for _, p := range demoProfiles {
-		id, err := profileRepo.UpsertProfile(ctx, p.slug, p.kind, p.name, p.tagline, p.provinceCode, p.status, p.featured)
+		caps, redirected, err := seedDemoProfile(ctx, profileRepo, catIDBySlug, p)
 		if err != nil {
 			return err
 		}
 		profileCount++
-		for _, c := range p.capabilities {
-			catID, ok := catIDBySlug[c.categorySlug]
-			if !ok {
-				return fmt.Errorf("seed demo: thiếu category %q (chạy --master trước)", c.categorySlug)
-			}
-			moq := c.minOrderQty
-			if err := profileRepo.UpsertCapability(ctx, id, catID, c.productionModel, &moq, c.sampleSupported); err != nil {
-				return err
-			}
-			capCount++
+		capCount += caps
+		if redirected {
+			redirectCount++
 		}
 	}
 	logger.Info("seed demo xong",
 		slog.Int("profiles", profileCount),
 		slog.Int("capabilities", capCount),
+		slog.Int("redirects", redirectCount),
 	)
 	return nil
+}
+
+// seedDemoProfile upsert một profile demo cùng capabilities và (tùy chọn) redirect.
+// Trả số capability đã seed và redirect có được tạo không.
+func seedDemoProfile(ctx context.Context, repo *repository.ProfileRepository, catIDBySlug map[string]int64, p profileSeed) (int, bool, error) {
+	id, err := repo.UpsertProfile(ctx, repository.ProfileUpsert{
+		Slug:         p.slug,
+		Kind:         p.kind,
+		Name:         p.name,
+		Tagline:      p.tagline,
+		ProvinceCode: p.provinceCode,
+		Status:       p.status,
+		Featured:     p.featured,
+	})
+	if err != nil {
+		return 0, false, err
+	}
+	for _, c := range p.capabilities {
+		catID, ok := catIDBySlug[c.categorySlug]
+		if !ok {
+			return 0, false, fmt.Errorf("seed demo: thiếu category %q (chạy --master trước)", c.categorySlug)
+		}
+		moq := c.minOrderQty
+		if err := repo.UpsertCapability(ctx, id, catID, c.productionModel, &moq, c.sampleSupported); err != nil {
+			return 0, false, err
+		}
+	}
+	if p.redirectFrom != "" {
+		if err := repo.UpsertRedirect(ctx, p.redirectFrom, id); err != nil {
+			return 0, false, err
+		}
+		return len(p.capabilities), true, nil
+	}
+	return len(p.capabilities), false, nil
 }
 
 // --- Master data vùng pilot (HCM, Bình Dương, Đồng Nai) ---
@@ -169,16 +197,25 @@ var masterProvinces = []provinceSeed{
 	},
 }
 
+// Slug category (master data) — dùng chung cho seed master và demo.
+const (
+	catAoThun  = "ao-thun"
+	catPolo    = "polo"
+	catSoMi    = "so-mi"
+	catQuanNam = "quan-nam"
+	catAoKhoac = "ao-khoac"
+)
+
 type categorySeed struct {
 	slug, name string
 }
 
 var masterCategories = []categorySeed{
-	{"ao-thun", "Áo thun"},
-	{"polo", "Áo polo"},
-	{"so-mi", "Sơ mi"},
-	{"quan-nam", "Quần nam"},
-	{"ao-khoac", "Áo khoác"},
+	{catAoThun, "Áo thun"},
+	{catPolo, "Áo polo"},
+	{catSoMi, "Sơ mi"},
+	{catQuanNam, "Quần nam"},
+	{catAoKhoac, "Áo khoác"},
 }
 
 // --- Dữ liệu demo (giả lập để test list/filter, KHÔNG phải xưởng thật) ---
@@ -193,6 +230,7 @@ type capabilitySeed struct {
 type profileSeed struct {
 	slug, kind, name, tagline, provinceCode, status string
 	featured                                        bool
+	redirectFrom                                    string // slug cũ → 301 về profile này (test §12.8)
 	capabilities                                    []capabilitySeed
 }
 
@@ -201,9 +239,10 @@ var demoProfiles = []profileSeed{
 		slug: "xuong-may-abc", kind: "factory", name: "Xưởng may ABC",
 		tagline: "Chuyên polo & áo thun full package", provinceCode: "79",
 		status: "published", featured: true,
+		redirectFrom: "xuong-may-cu", // slug cũ để test redirect 301
 		capabilities: []capabilitySeed{
-			{"polo", "full_package", 100, true},
-			{"ao-thun", "cmt", 50, true},
+			{catPolo, "full_package", 100, true},
+			{catAoThun, "cmt", 50, true},
 		},
 	},
 	{
@@ -211,7 +250,7 @@ var demoProfiles = []profileSeed{
 		tagline: "FOB số lượng lớn", provinceCode: "74",
 		status: "published", featured: false,
 		capabilities: []capabilitySeed{
-			{"polo", "fob", 500, false},
+			{catPolo, "fob", 500, false},
 		},
 	},
 	{
@@ -219,7 +258,7 @@ var demoProfiles = []profileSeed{
 		tagline: "Áo thun full package", provinceCode: "75",
 		status: "published", featured: false,
 		capabilities: []capabilitySeed{
-			{"ao-thun", "full_package", 200, true},
+			{catAoThun, "full_package", 200, true},
 		},
 	},
 	{
@@ -228,7 +267,7 @@ var demoProfiles = []profileSeed{
 		tagline: "", provinceCode: "79",
 		status: "draft", featured: false,
 		capabilities: []capabilitySeed{
-			{"polo", "cmt", 30, true},
+			{catPolo, "cmt", 30, true},
 		},
 	},
 }

@@ -57,6 +57,7 @@ func NewRouter(logger *slog.Logger, pool *pgxpool.Pool, location *handler.Locati
 	r.Route("/api", func(api chi.Router) {
 		api.Get("/provinces", location.ListProvinces)
 		api.Get("/profiles", profiles.List)
+		api.Get("/profiles/{slug}", profiles.Detail)
 	})
 
 	return r

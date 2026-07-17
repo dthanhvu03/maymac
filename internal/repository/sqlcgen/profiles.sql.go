@@ -7,6 +7,8 @@ package sqlcgen
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const countPublishedProfiles = `-- name: CountPublishedProfiles :one
@@ -56,6 +58,71 @@ func (q *Queries) CountPublishedProfiles(ctx context.Context, arg CountPublished
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const getPublishedProfileBySlug = `-- name: GetPublishedProfileBySlug :one
+SELECT p.id, p.slug, p.kind, p.name, p.tagline, p.description,
+       p.province_code, p.district_id, p.address,
+       p.contact_name, p.contact_phone, p.contact_zalo, p.contact_email,
+       p.website_url, p.facebook_url,
+       p.established_year, p.worker_count, p.production_line_count,
+       p.verification_level, p.last_verified_at, p.featured
+FROM profiles p
+WHERE p.slug = $1 AND p.status = 'published'
+`
+
+type GetPublishedProfileBySlugRow struct {
+	ID                  int64
+	Slug                string
+	Kind                ProfileKind
+	Name                string
+	Tagline             *string
+	Description         *string
+	ProvinceCode        string
+	DistrictID          *int64
+	Address             *string
+	ContactName         *string
+	ContactPhone        *string
+	ContactZalo         *string
+	ContactEmail        *string
+	WebsiteUrl          *string
+	FacebookUrl         *string
+	EstablishedYear     *int16
+	WorkerCount         *int32
+	ProductionLineCount *int32
+	VerificationLevel   VerificationLevel
+	LastVerifiedAt      pgtype.Timestamptz
+	Featured            bool
+}
+
+// Detail công khai — chỉ profile published.
+func (q *Queries) GetPublishedProfileBySlug(ctx context.Context, slug string) (GetPublishedProfileBySlugRow, error) {
+	row := q.db.QueryRow(ctx, getPublishedProfileBySlug, slug)
+	var i GetPublishedProfileBySlugRow
+	err := row.Scan(
+		&i.ID,
+		&i.Slug,
+		&i.Kind,
+		&i.Name,
+		&i.Tagline,
+		&i.Description,
+		&i.ProvinceCode,
+		&i.DistrictID,
+		&i.Address,
+		&i.ContactName,
+		&i.ContactPhone,
+		&i.ContactZalo,
+		&i.ContactEmail,
+		&i.WebsiteUrl,
+		&i.FacebookUrl,
+		&i.EstablishedYear,
+		&i.WorkerCount,
+		&i.ProductionLineCount,
+		&i.VerificationLevel,
+		&i.LastVerifiedAt,
+		&i.Featured,
+	)
+	return i, err
 }
 
 const listPublishedProfiles = `-- name: ListPublishedProfiles :many
@@ -149,6 +216,21 @@ func (q *Queries) ListPublishedProfiles(ctx context.Context, arg ListPublishedPr
 	return items, nil
 }
 
+const resolveProfileRedirect = `-- name: ResolveProfileRedirect :one
+SELECT p.slug
+FROM profile_slug_redirects r
+JOIN profiles p ON p.id = r.profile_id
+WHERE r.old_slug = $1
+`
+
+// old_slug -> canonical slug hiện tại (redirect 1 bước, §12.8).
+func (q *Queries) ResolveProfileRedirect(ctx context.Context, oldSlug string) (string, error) {
+	row := q.db.QueryRow(ctx, resolveProfileRedirect, oldSlug)
+	var slug string
+	err := row.Scan(&slug)
+	return slug, err
+}
+
 const upsertProfileBySlug = `-- name: UpsertProfileBySlug :one
 INSERT INTO profiles (slug, kind, name, tagline, province_code, status, featured)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -186,4 +268,20 @@ func (q *Queries) UpsertProfileBySlug(ctx context.Context, arg UpsertProfileBySl
 	var id int64
 	err := row.Scan(&id)
 	return id, err
+}
+
+const upsertProfileRedirect = `-- name: UpsertProfileRedirect :exec
+INSERT INTO profile_slug_redirects (old_slug, profile_id)
+VALUES ($1, $2)
+ON CONFLICT (old_slug) DO UPDATE SET profile_id = EXCLUDED.profile_id
+`
+
+type UpsertProfileRedirectParams struct {
+	OldSlug   string
+	ProfileID int64
+}
+
+func (q *Queries) UpsertProfileRedirect(ctx context.Context, arg UpsertProfileRedirectParams) error {
+	_, err := q.db.Exec(ctx, upsertProfileRedirect, arg.OldSlug, arg.ProfileID)
+	return err
 }
