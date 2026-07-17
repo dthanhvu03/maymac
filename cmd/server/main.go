@@ -11,9 +11,11 @@ import (
 	"syscall"
 
 	"github.com/dthanhvu03/maymac/internal/api"
+	"github.com/dthanhvu03/maymac/internal/api/handler"
 	"github.com/dthanhvu03/maymac/internal/config"
 	"github.com/dthanhvu03/maymac/internal/observability"
 	"github.com/dthanhvu03/maymac/internal/repository"
+	"github.com/dthanhvu03/maymac/internal/service"
 )
 
 func main() {
@@ -41,9 +43,14 @@ func run() error {
 	}
 	defer pool.Close()
 
+	// Wire các lớp: repository -> service -> handler.
+	locationRepo := repository.NewLocationRepository(pool)
+	locationSvc := service.NewLocationService(locationRepo)
+	locationHandler := handler.NewLocationHandler(locationSvc)
+
 	srv := &http.Server{
 		Addr:         cfg.HTTPAddr,
-		Handler:      api.NewRouter(logger, pool),
+		Handler:      api.NewRouter(logger, pool, locationHandler),
 		ReadTimeout:  cfg.HTTPReadTimeout,
 		WriteTimeout: cfg.HTTPWriteTimeout,
 		IdleTimeout:  cfg.HTTPIdleTimeout,

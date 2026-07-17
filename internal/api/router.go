@@ -13,11 +13,12 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/dthanhvu03/maymac/internal/api/dto"
+	"github.com/dthanhvu03/maymac/internal/api/handler"
 	apimw "github.com/dthanhvu03/maymac/internal/api/middleware"
 )
 
-// NewRouter trả về http.Handler đã gắn middleware và endpoint health.
-func NewRouter(logger *slog.Logger, pool *pgxpool.Pool) http.Handler {
+// NewRouter trả về http.Handler đã gắn middleware, endpoint health và API.
+func NewRouter(logger *slog.Logger, pool *pgxpool.Pool, location *handler.LocationHandler) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(chimw.RequestID)
@@ -50,6 +51,11 @@ func NewRouter(logger *slog.Logger, pool *pgxpool.Pool) http.Handler {
 			return
 		}
 		writeJSON(w, http.StatusOK, `{"status":"ready"}`)
+	})
+
+	// API nghiệp vụ.
+	r.Route("/api", func(api chi.Router) {
+		api.Get("/provinces", location.ListProvinces)
 	})
 
 	return r

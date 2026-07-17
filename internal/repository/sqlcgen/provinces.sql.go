@@ -48,3 +48,23 @@ func (q *Queries) ListProvinces(ctx context.Context) ([]Province, error) {
 	}
 	return items, nil
 }
+
+const upsertProvince = `-- name: UpsertProvince :exec
+INSERT INTO provinces (code, name_vi, slug)
+VALUES ($1, $2, $3)
+ON CONFLICT (code) DO UPDATE
+  SET name_vi = EXCLUDED.name_vi,
+      slug    = EXCLUDED.slug
+`
+
+type UpsertProvinceParams struct {
+	Code   string
+	NameVi string
+	Slug   string
+}
+
+// Dùng cho seed master data — idempotent theo khóa chính code.
+func (q *Queries) UpsertProvince(ctx context.Context, arg UpsertProvinceParams) error {
+	_, err := q.db.Exec(ctx, upsertProvince, arg.Code, arg.NameVi, arg.Slug)
+	return err
+}
