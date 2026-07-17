@@ -1,0 +1,36 @@
+schemaVersion: 1
+id: pre-build-critique
+owner: platform-team
+version: "1.0.0"
+trustTier: T0
+provenance:
+  sourceRef: bundled
+  reviewStatus: approved
+invocation:
+  implicit: true
+  manual: true
+permissions:
+  # Needs write to record the gate token (.kit/state/gate.json); shell/network stay denied.
+  requestedTools:
+    - read
+    - search
+    - write
+  deniedTools:
+    - shell
+    - network
+  preApprovedTools: []
+execution:
+  network: false
+  executableScripts: false
+relatedRoles:
+  - reviewer
+  - architect
+relatedRules:
+  - critique-gate
+  - hard-rules
+targets:
+  supported:
+    - claude
+    - cursor
+    - copilot
+    - windsurf

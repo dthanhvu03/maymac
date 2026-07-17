@@ -1,0 +1,13 @@
+# Go profile — opinionated defaults following standard Go idioms.
+id: go
+description: Go with standard layout, gofmt, and table-driven tests.
+
+rules:
+  - rules/conventions.md
+
+defaults:
+  test: "go test ./..."
+  lint: "go vet ./..."
+  build: "go build ./..."
+
+invariants: []

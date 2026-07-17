@@ -1,0 +1,10 @@
+---
+# FILE SINH TỰ ĐỘNG — ĐỪNG SỬA. Sửa engine/ hoặc kit.config.yaml rồi chạy: kit build
+description: "API routes validate input and return typed responses; no business logic in the route body."
+globs: apps/web/app/**/route.ts
+alwaysApply: false
+---
+
+API routes validate input and return typed responses; no business logic in the route body.
+
+_SOFT RULE — advisory guidance, not enforced by the kit._

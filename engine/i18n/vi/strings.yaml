@@ -1,0 +1,7 @@
+# Chuỗi tiếng Việt cho banner file sinh ra và khung CLAUDE.md.
+generated_banner: "FILE SINH TỰ ĐỘNG — ĐỪNG SỬA. Sửa engine/ hoặc kit.config.yaml rồi chạy: kit build"
+claude_intro: "Hướng dẫn agent của dự án. Luật cốt lõi ở .claude/rules/ (tự nạp). Vai trò ở .claude/agents/."
+mode_note_vibe: "Chế độ: vibe — làm nhanh, nói tiếng người, giữ codebase nhất quán. Guardrail luôn bật."
+mode_note_standard: "Chế độ: standard — brief, tự review, chạy test trước khi báo xong."
+mode_note_strict: "Chế độ: strict — full gate; cần người duyệt cho schema/prod/data."
+session_memory_note: "Đọc Constitution (.kit/constitution.md) và Decision Log (.kit/decisions.md) trước khi code."

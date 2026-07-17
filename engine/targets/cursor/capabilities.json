@@ -1,0 +1,35 @@
+{
+  "id": "cursor",
+  "displayName": "Cursor",
+  "verification": {
+    "status": "unverified",
+    "verifiedAt": null,
+    "sourceType": "in-repo-usage",
+    "note": ".mdc frontmatter (globs/alwaysApply) not re-confirmed against current official docs (CHƯA XÁC MINH)."
+  },
+  "artifacts": [
+    ".cursor/rules/*.mdc",
+    ".cursor/commands/*.md"
+  ],
+  "features": {
+    "globalInstructions": "native",
+    "pathScopedRules": "supported",
+    "skills": "partial",
+    "commands": "supported",
+    "hooks": "unsupported",
+    "hardBlock": "unsupported",
+    "agentsMd": "unknown",
+    "runtimeRouter": "unsupported",
+    "progressiveDisclosure": "globScoped",
+    "transactionalGeneration": "kit-owned",
+    "driftDetection": "kit-owned",
+    "ownershipManifest": "kit-owned",
+    "invocationControl": "unknown",
+    "pathGatedSkillActivation": "unknown"
+  },
+  "limitations": [
+    "No model-invoked skills: each skill is also emitted as a command.",
+    "No execution hooks — command guard does not apply to Cursor runs.",
+    "invocationControl/pathGatedSkillActivation CHƯA XÁC MINH — a skill declaring manual-only invocation or Claude-style path-gated activation has no confirmed Cursor equivalent."
+  ]
+}

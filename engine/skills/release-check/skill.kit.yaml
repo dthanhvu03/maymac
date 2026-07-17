@@ -1,0 +1,34 @@
+schemaVersion: 1
+id: release-check
+owner: platform-team
+version: "1.0.0"
+trustTier: T0
+provenance:
+  sourceRef: bundled
+  reviewStatus: approved
+invocation:
+  implicit: true
+  manual: true
+permissions:
+  requestedTools:
+    - read
+    - search
+  deniedTools:
+    - write
+    - shell
+    - network
+  preApprovedTools: []
+execution:
+  network: false
+  executableScripts: false
+relatedRoles:
+  - devops
+  - qa
+relatedRules:
+  - evidence-gate
+targets:
+  supported:
+    - claude
+    - cursor
+    - copilot
+    - windsurf

@@ -1,0 +1,49 @@
+# Universal Agent Kit — project config (written by `kit init`)
+version: 2
+
+project:
+  name: "maymac"
+  language: vi
+
+mode: vibe
+
+stack:
+  profile:
+    - go
+    - nextjs
+  roots:
+    nextjs: apps/web
+  test: ""
+  lint: ""
+  build: ""
+
+agents:
+  - claude
+  - agentsmd
+  - cursor
+
+outDir: .
+
+approvers:
+  schema_change: []
+  prod_deploy: []
+  data_delete: []
+
+invariants: []
+
+guardrails:
+  block:
+    - "rm -rf /"
+    - "rm -rf ~"
+    - "git push --force"
+    - "git push -f"
+    - "git reset --hard"
+    - "DROP TABLE"
+    - "DROP DATABASE"
+    - "TRUNCATE"
+    - "DELETE FROM"
+    - "docker compose down -v"
+    - "docker volume rm"
+    - "docker volume prune"
+    - "docker system prune --volumes"
+  allow_extra: []

@@ -1,0 +1,118 @@
+# Doctor/build diagnostic message catalog (Vietnamese — the kit's original default).
+# Keyed by stable CODE. Wording here is transcribed VERBATIM from the code that shipped
+# before this catalog existed, so the default (no project.language: en) behavior is
+# byte-for-byte unchanged.
+
+# --- kitgen.mjs: Node / Config / Paths / Hooks -----------------------------
+NODE_TOO_OLD: "node v{version} < 18 -> nâng cấp Node lên >= 18"
+NODE_OK: "node v{version} (>= 18)"
+CONFIG_FILE_MISSING: "thiếu kit.config.yaml -> chạy: npm run init"
+CONFIG_PARSE_ERROR: "kit.config.yaml không parse được ({message}) -> {hint}"
+CONFIG_VALID: "kit.config.yaml hợp lệ"
+PATHS_MISSING_DIR: "thiếu thư mục {dir}/"
+HOOKS_MISSING_FILE: "thiếu .kit/hooks/{file}"
+HOOKS_YAML_DRIFT: "hook yaml lệch nguồn -> chạy: cp tools/kitgen/yaml.mjs .kit/hooks/yaml.mjs"
+HOOKS_SETTINGS_HOOK_MISSING: "settings tham chiếu hook không tồn tại: {file}"
+
+# --- kitgen.mjs: Generated output (drift) ----------------------------------
+GENERATED_OUTPUT_BUILD_FAILED: "không dựng được output để so drift ({message})"
+GENERATED_OUTPUT_DRIFT: "{outDir}/ lệch nguồn ({count} file) -> chạy: npm run build"
+GENERATED_OUTPUT_MATCH: "{count} file khớp ({outDir}/)"
+MISSING_OWNED: "MISSING_OWNED: {outDir}/{rel}"
+MODIFIED_OWNED: "MODIFIED_OWNED: {outDir}/{rel}"
+STALE_OWNED: "STALE_OWNED: {outDir}/{rel} -> chạy build để dọn"
+UNEXPECTED_UNOWNED: "UNEXPECTED_UNOWNED: {outDir}/{rel} (không do kit sinh; được giữ lại)"
+
+# --- kitgen.mjs: Rules (enforce) legacy doctor checks ----------------------
+RULES_ENFORCE_MISSING_LABEL: "rule \"{id}\" thiếu nhãn enforce"
+RULES_ENFORCE_GENERATOR_MISSING: "rule \"{id}\" enforce=generator nhưng thiếu tools/kitgen/kitgen.mjs"
+RULES_ENFORCE_GATE_NO_SKILL: "rule \"{id}\" enforce=gate nhưng không skill nào có mục output format"
+RULES_ENFORCE_HOOK_UNMAPPED: "rule \"{id}\" enforce=hook nhưng chưa có mapping hook (bổ sung HOOK_MAP)"
+RULES_ENFORCE_HOOK_MISSING_FILE: "rule \"{id}\" enforce=hook nhưng thiếu .kit/hooks/{hookFile}"
+RULES_ENFORCE_TOKEN_UNRECOGNIZED: "rule \"{id}\" enforce=\"{tok}\" không nhận diện"
+RULES_ENFORCE_OK: "{count} rule enforce hợp lệ"
+
+# --- kitgen.mjs: Skills P0 legacy doctor checks ----------------------------
+SKILLS_P0_MISSING: "thiếu skill {id}"
+SKILLS_P0_DESCRIPTION_MISSING: "skill {id} thiếu description"
+SKILLS_P0_OUTPUT_SECTION_MISSING: "skill {id} thiếu mục output format"
+SKILLS_P0_OK: "code-review, refactor, test-design"
+
+# --- kitgen.mjs: Roles legacy doctor checks ---------------------------------
+ROLES_MODEL_MISSING: "role \"{name}\" thiếu model"
+ROLES_TOOLS_MISSING: "role \"{name}\" thiếu tools"
+ROLES_OK: "{count} role có description trigger + model + tools"
+
+# --- validate.mjs: config-level checks --------------------------------------
+CONFIG_VERSION_MISSING: "thiếu 'version'"
+CONFIG_PROJECT_NAME_MISSING: "thiếu 'project.name'"
+CONFIG_MODE_INVALID: "mode \"{mode}\" không hợp lệ -> dùng: {modes}"
+CONFIG_PROFILE_NOT_FOUND: "stack.profile \"{profile}\" không tồn tại -> xem profiles/"
+CONFIG_AGENTS_EMPTY: "'agents' rỗng -> khai báo ít nhất một target"
+CONFIG_AGENT_UNKNOWN: "agent target lạ \"{agent}\" -> dùng: {known}"
+CONFIG_OUTDIR_NOT_STRING: "'outDir' không phải string -> mặc định 'dist'"
+CONFIG_OUTDIR_OUTSIDE_PROJECT: "outDir \"{outDir}\" nằm ngoài project ({abs}) -> chọn một thư mục bên trong project"
+
+# --- emitter.mjs: invariants -------------------------------------------------
+INVARIANT_ENFORCEMENT_INVALID: "invariant \"{id}\": enforcement \"{enforcement}\" invalid -> use {allowed}"
+INVARIANT_ID_CONFLICT: "invariant id conflict: \"{id}\" ({prevLayer} vs {layer}) -> set 'override: true' on the project invariant to replace, or rename its id"
+
+# --- emitter.mjs: skill governance -------------------------------------------
+SKILL_SCHEMA_VERSION_INVALID: "{tag}: schemaVersion \"{value}\" không hợp lệ -> phải là số nguyên dương"
+SKILL_SCHEMA_VERSION_UNKNOWN: "{tag}: schemaVersion {value} chưa được kit hỗ trợ (hỗ trợ: {supported}) -> kiểm tra tương thích trước khi dùng"
+SKILL_NAME_FORMAT_INVALID: "{tag}: directory name không hợp lệ theo Agent Skills spec (chỉ a-z0-9-, không bắt đầu/kết thúc bằng '-', không '--', tối đa 64 ký tự)"
+SKILL_DESCRIPTION_MISSING: "{tag}: thiếu description (bắt buộc theo Agent Skills spec)"
+SKILL_DESCRIPTION_TOO_LONG: "{tag}: description dài {length} ký tự (>{limit}, giới hạn Agent Skills spec) -> rút gọn, đưa chi tiết vào references/"
+SKILL_DESCRIPTION_LISTING_TOO_LONG: "{tag}: description+when_to_use dài {length} ký tự (>{limit}, giới hạn hiển thị của Claude) -> sẽ bị cắt bớt trong skill listing"
+SKILL_DESCRIPTION_TRIGGER_WEAK: "{tag}: description/when_to_use không có cue kích hoạt rõ ràng (vd \"use when\", \"invoke\", \"dùng khi\") -> agent có thể khó chọn đúng skill (heuristic, có thể false positive)"
+SKILL_TRUST_TIER_INVALID: "{tag}: trustTier \"{tier}\" không hợp lệ -> dùng {tiers}"
+SKILL_TRUST_TIER_AUTO_INVOKE: "{tag}: trustTier {tier} phải manual-only -> đặt invocation.implicit: false trong skill.kit.yaml"
+SKILL_TRUST_TIER_MISSING_HASH: "{tag}: trustTier {tier} thiếu provenance.contentHash -> pin nội dung bằng hash trước khi dùng"
+SKILL_HASH_FORMAT_INVALID: "{tag}: provenance.contentHash \"{hashField}\" sai định dạng -> dùng \"sha256:<hex>\" hoặc \"sha512:<hex>\""
+SKILL_HASH_ALGO_LENGTH_MISMATCH: "{tag}: contentHash có {hexLen} hex char, không khớp độ dài chuẩn của {algo} ({expectedLen})"
+SKILL_HASH_MISMATCH: "{tag}: contentHash không khớp nội dung thực tế (declared={declared}… actual={actual}…) -> nội dung đã đổi kể từ khi pin, cập nhật hash sau khi review lại"
+SKILL_PERMISSION_CONTRADICTION: "{tag}: tool \"{tool}\" vừa deniedTools vừa preApprovedTools -> mâu thuẫn"
+SKILL_PERMISSION_UNREQUESTED: "{tag}: preApprovedTools \"{tool}\" không nằm trong requestedTools -> khai báo requestedTools trước"
+
+# --- emitter.mjs: role governance ---------------------------------------------
+ROLE_SCHEMA_VERSION_INVALID: "{tag}: schemaVersion \"{value}\" không hợp lệ -> phải là số nguyên dương"
+ROLE_SCHEMA_VERSION_UNKNOWN: "{tag}: schemaVersion {value} chưa được kit hỗ trợ (hỗ trợ: {supported}) -> kiểm tra tương thích trước khi dùng"
+ROLE_PERMISSION_CONTRADICTION: "{tag}: tool \"{tool}\" vừa allowTools vừa denyTools -> mâu thuẫn"
+ROLE_PERMISSION_MODE_INVALID: "{tag}: permissions.mode \"{mode}\" không hợp lệ -> dùng {modes}"
+ROLE_ISOLATION_INVALID: "{tag}: runtime.isolation \"{mode}\" không hợp lệ -> dùng {modes}"
+ROLE_EFFORT_INVALID: "{tag}: runtime.effort \"{effort}\" không hợp lệ -> dùng {levels}"
+ROLE_MEMORY_SCOPE_INVALID: "{tag}: memory.scope \"{scope}\" không hợp lệ -> dùng {scopes}"
+ROLE_MAX_TURNS_INVALID: "{tag}: runtime.maxTurns phải là số nguyên dương"
+ROLE_SKILL_PRELOAD_BROKEN_REFERENCE: "{tag}: preload skill \"{sid}\" không tồn tại"
+ROLE_SKILL_PRELOAD_MANUAL_ONLY_CONFLICT: "{tag}: skill \"{sid}\" có disable-model-invocation (manual-only) -> không thể preload (Claude sẽ bỏ qua và chỉ ghi log debug)"
+ROLE_DESCRIPTION_MISSING: "{tag}: thiếu description"
+ROLE_DESCRIPTION_TRIGGER_WEAK: "{tag}: description không có cue rõ ràng cho việc delegate (vd \"use when\", \"invoke for\", \"dùng khi\") -> agent khó tự chọn role (heuristic, có thể false positive)"
+ROLE_SENIORITY_INCOMPLETE: "{tag}: thân role còn mỏng so với chuẩn senior — thiếu {missing} (rubric heuristic hiring-bar, có thể false positive)"
+ROLE_OUTPUT_SECTION_MISSING: "{tag}: body thiếu mục output bắt buộc \"{section}\""
+
+# --- emitter.mjs: rule governance ----------------------------------------------
+RULE_ID_MISSING: "rule thiếu id (title=\"{title}\")"
+RULE_ID_CONFLICT: "rule id \"{id}\" trùng lặp giữa engine/profile -> đổi tên id (hoặc thêm 'override: true' nếu profile cố ý ghi đè)"
+RULE_ACTIVATION_MODE_INVALID: "rule \"{id}\": activation.mode \"{mode}\" không hợp lệ -> dùng {modes}"
+RULE_ENFORCEMENT_TYPE_INVALID: "rule \"{id}\": enforcement.type \"{type}\" không hợp lệ -> dùng {types}"
+RULE_HOOK_UNMAPPED: "rule \"{id}\": enforcement.type=hook nhưng chưa có mapping trong RULE_HOOK_MAP"
+RULE_HOOK_MISSING: "rule \"{id}\": enforcement.type=hook nhưng thiếu .kit/hooks/{hookFile}"
+RULE_STATIC_CHECK_NO_BACKING: "rule \"{id}\": enforcement.type=static-check nhưng không skill nào có mục output format"
+
+# --- skill schema / migration / capability warnings (collectBuildWarnings) --
+SKILL_NAME_MISMATCH: "name \"{name}\" != directory \"{dir}\"; using the directory name"
+SKILL_PATHS_TRIVIAL_DROPPED: "\"paths\" matches everything (no real gate); dropped as a no-op from portable SKILL.md"
+SKILL_PATHS_MIGRATED_VENDOR_OVERLAY: "\"paths\" is not an Agent Skills field; migrated to the Claude-only activation overlay (skill.kit.yaml activation.claude.paths)"
+SKILL_METADATA_NOT_STRING: "metadata must be string→string; complex value ignored"
+SKILL_RELATED_FIELDS_NONSTANDARD: "related_roles/related_rules are non-standard and are dropped from SKILL.md"
+SKILL_SUPPORTING_FILE_ESCAPES_ROOT: "\"{name}\" resolves outside the skill's own folder (real path: {real}) and is excluded"
+SKILL_INVOCATION_CONTROL_UNSUPPORTED_TARGET: "target \"{agent}\" chưa xác nhận hỗ trợ chặn auto-invoke (invocationControl={support}) — skill \"{id}\" có thể vẫn tự động kích hoạt dù khai báo manual-only"
+SKILL_PATH_GATE_UNSUPPORTED_TARGET: "path-gated activation cho skill \"{id}\" là vendor extension của Claude — target \"{agent}\" chưa xác nhận có cơ chế tương đương, skill sẽ luôn kích hoạt theo description"
+SKILL_NAME_MISMATCH_REMEDIATION: "set SKILL.md name to the folder name"
+SKILL_PATHS_TRIVIAL_DROPPED_REMEDIATION: "omit paths entirely if no activation gating is intended"
+SKILL_PATHS_MIGRATED_VENDOR_OVERLAY_REMEDIATION: "declare it as activation.claude.paths in skill.kit.yaml going forward"
+SKILL_METADATA_NOT_STRING_REMEDIATION: "move it to skill.kit.yaml"
+SKILL_RELATED_FIELDS_NONSTANDARD_REMEDIATION: "declare them in skill.kit.yaml"
+SKILL_SUPPORTING_FILE_ESCAPES_ROOT_REMEDIATION: "keep scripts/references/assets self-contained inside the skill folder; do not symlink outside it"
+SKILL_INVOCATION_CONTROL_UNSUPPORTED_TARGET_REMEDIATION: "verify khả năng của \"{agent}\" hoặc không emit skill này cho target đó"
+SKILL_PATH_GATE_UNSUPPORTED_TARGET_REMEDIATION: "cân nhắc bổ sung một Rule path-scoped tương ứng cho target \"{agent}\""

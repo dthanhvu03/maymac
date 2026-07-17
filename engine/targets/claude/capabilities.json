@@ -1,0 +1,39 @@
+{
+  "id": "claude",
+  "displayName": "Claude Code",
+  "verification": {
+    "status": "partial",
+    "verifiedAt": "2026-07-11",
+    "sourceType": "official-documentation",
+    "note": "Skill frontmatter (name/description/when_to_use/disable-model-invocation/user-invocable/allowed-tools/disallowed-tools/paths/effort) and .claude/rules/ path-scoping verified against code.claude.com/docs/en/skills + /memory (2026-07-11). AGENTS.md import semantics still CHƯA XÁC MINH."
+  },
+  "artifacts": [
+    "CLAUDE.md",
+    ".claude/rules/*.md",
+    ".claude/agents/*.md",
+    ".claude/commands/*.md",
+    ".claude/skills/*/SKILL.md",
+    ".claude/settings.json"
+  ],
+  "features": {
+    "globalInstructions": "native",
+    "pathScopedRules": "supported",
+    "skills": "supported",
+    "commands": "supported",
+    "hooks": "supported",
+    "hardBlock": "partial",
+    "agentsMd": "import",
+    "runtimeRouter": "unsupported",
+    "progressiveDisclosure": "pathScoped",
+    "transactionalGeneration": "kit-owned",
+    "driftDetection": "kit-owned",
+    "ownershipManifest": "kit-owned",
+    "invocationControl": "supported",
+    "pathGatedSkillActivation": "supported"
+  },
+  "limitations": [
+    "hardBlock is a kit PreToolUse hook, not a sandbox; env-var/indirection bypasses remain (see ADR-003).",
+    "agentsMd import behavior CHƯA XÁC MINH — adapter still emits native CLAUDE.md.",
+    "invocationControl = disable-model-invocation (verified); pathGatedSkillActivation = skill-level `paths` frontmatter (verified, vendor extension to Agent Skills — same format as path-specific rules)."
+  ]
+}
