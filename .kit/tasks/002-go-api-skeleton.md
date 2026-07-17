@@ -1,6 +1,6 @@
 # [TASK-002] Nền móng: Go API server skeleton
 
-- **Status:** in-progress
+- **Status:** in-review (đã commit feature branch; chờ founder duyệt merge)
 - **Owner:** vuongstus
 - **Branch:** feature/go-api-skeleton · **Remote:** github.com/dthanhvu03/maymac
 - **Mode:** vibe
@@ -8,10 +8,13 @@
 ## Gate status
 - [x] **Challenge** (pre-build critique) — **go** (critique nén, xem Decisions)
 - [x] **Impact map** — greenfield code mới; chỉ đọc DB (readyz ping). Không đụng schema, không caller cũ.
-- [ ] **Review** (correctness + consistency)
-- [ ] **Tests** pass (evidence — go build/vet + chạy server thật + curl /healthz, /readyz)
-- [ ] **Required artifacts** — không đụng schema/money/auth/PII → n/a
-- [ ] **Approval** — n/a (không đụng prod/schema/data)
+- [x] **Review** (correctness + consistency) — layering handler→…→domain đúng; Problem Details không lộ SQL/stack; log đủ trường §5.5; pgxpool cấu hình env §7.4; build/vet sạch
+- [x] **Tests** pass — build/vet OK; server chạy thật: /healthz 200, /readyz 200 (DB up) & 503 (DB down), 404 problem+json có request_id, structured log mỗi request
+- [x] **Required artifacts** — không đụng schema/money/auth/PII → n/a
+- [x] **Approval** — n/a (không đụng prod/schema/data)
+
+## Ghi chú môi trường
+- Windows Defender false-positive xóa binary Go mới build. Đã thêm Defender **exclusion có giới hạn** cho `D:\Zusem\maymac\bin` và `D:\Zusem\maymac\.gobuild`; build dùng `GOTMPDIR=.gobuild`. Hoàn tác: `Remove-MpPreference -ExclusionPath <path>`.
 
 ## Scope
 - **In:** Khung Go API chạy được: `go.mod` (module github.com/dthanhvu03/maymac), `cmd/server/main.go` (graceful shutdown, HTTP timeouts), `internal/config` (env), `internal/observability` (slog JSON), `internal/api` (chi router + middleware request-id/logger/recoverer + Problem Details error), `internal/repository` (pgxpool constructor), endpoint `/healthz` (liveness) + `/readyz` (ping DB). `sqlc.yaml` + `.env.example`.

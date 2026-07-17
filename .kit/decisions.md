@@ -33,3 +33,13 @@
 - **Decision:** Dựng khung monorepo theo coding standards §3 và tạo toàn bộ schema v3.3 bằng 9 migration chia theo domain (27 bảng, 15 enum, 1 view, 8 trigger `updated_at`). Verify bằng Postgres 16 trong Docker (apply psql, không cần Go).
 - **Why:** Go chưa được cài trên máy dev → chọn lớp nền có giá trị nhất và verify được ngay là database. Go API server và Next.js app hoãn sang lát sau.
 - **Applies to:** toàn repo; xem task `.kit/tasks/001-foundation-db-schema.md`.
+
+## 2026-07-17 — Go API server skeleton
+- **Decision:** Backend HTTP dùng **chi/v5** (router + RequestID/RealIP) và **pgx/v5 pgxpool**. Module Go = `github.com/dthanhvu03/maymac`, `go 1.26`. Lỗi API theo `application/problem+json` (RFC 7807, kèm `request_id`, không lộ SQL/stack). Log structured bằng `slog` JSON. Config nạp từ env (pool size, `statement_timeout`, `idle_in_transaction_session_timeout`, HTTP timeouts). Health: `/healthz` (liveness) + `/readyz` (ping DB). Layering `handler → service → repository → domain`.
+- **Why:** Đúng stack spec §9 và chuẩn §3/§5/§7/§10; skeleton chạy được + verify runtime trước khi thêm nghiệp vụ.
+- **Applies to:** `cmd/server`, `internal/*`, `sqlc.yaml`; xem task `.kit/tasks/002-go-api-skeleton.md`.
+
+## 2026-07-17 — Defender exclusion cho build Go (môi trường dev)
+- **Decision:** Thêm Windows Defender exclusion có giới hạn cho `D:\Zusem\maymac\bin` và `D:\Zusem\maymac\.gobuild`; build Go đặt `GOTMPDIR=D:\Zusem\maymac\.gobuild`.
+- **Why:** Defender false-positive xóa binary Go mới compile, chặn cả `go build`. Exclusion phạm vi hẹp (không tắt Defender toàn máy). Hoàn tác: `Remove-MpPreference -ExclusionPath <path>`.
+- **Applies to:** máy dev hiện tại; `.gitignore` đã bỏ qua `/bin/` và `/.gobuild/`.
