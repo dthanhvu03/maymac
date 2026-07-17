@@ -88,6 +88,7 @@ If a required artifact is missing, STOP and produce it — or state plainly why 
 - **refactor** — Use when changing structure without changing behavior. Invoke to plan a safe refactor with impact analysis and a rollback path before touching code.
 - **release-check** — Use before publishing or releasing (npm publish, tag, deploy). Invoke for a pre-release checklist covering version, changelog, tests, and a go/no-go verdict.
 - **security-review** — Use when a change touches auth, secrets, shell/command execution, file access, or the guard/hooks. Invoke for a risk assessment with concrete exploit scenarios and fixes.
+- **senior-reasoning** — Use before any non-trivial decision or design — invoke to think it through like a senior, not tick a checklist. Forces the moves that separate senior from junior: challenge the premise, weigh 2+ options with real numbers, trace second-order effects, name the risk a junior misses, steelman the opposite, and state assumptions + confidence. Raises the depth of /discover, /challenge, and /ship design.
 - **test-design** — Use when a task needs a QA or test gate. Invoke to design test cases and edge cases and to produce the exact commands that prove the behavior works.
 
 ## Commands

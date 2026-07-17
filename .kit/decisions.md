@@ -48,3 +48,8 @@
 - **Decision:** Migration chạy qua **goose** CLI (`goose_db_version` theo dõi state), **sqlc v1.31** sinh code từ `db/migrations` (schema) + `db/queries` (query). Tool dev cài bằng `make setup` vào `./bin` (không commit). Code sinh ra ở `internal/repository/sqlcgen/` **được commit**. Query khởi đầu: `db/queries/provinces.sql`.
 - **Why:** Đúng chuẩn §7 (goose) và §8 (sqlc, SQL review được, không ORM). sqlc bắt buộc có ≥1 query mới generate.
 - **Applies to:** `db/queries/`, `internal/repository/sqlcgen/`, `Makefile` (`setup`, `generate`, `migrate-*`); xem task `.kit/tasks/003-goose-sqlc-wiring.md`.
+
+## 2026-07-17 — Master data qua seed command + vertical slice đầu tiên
+- **Decision:** Master data (tỉnh/quận) nạp bằng `cmd/seed --master` **idempotent** (upsert), KHÔNG nhét vào migration. Endpoint đọc đi đủ lớp `handler → service → repository(sqlc) → domain`, trả **DTO allowlist** (`dto.ProvinceResponse`), không serialize sqlc row. Route đặt dưới `/api` (`GET /api/provinces`). Service tách interface (`ProvinceStore`) làm seam test.
+- **Why:** Makefile/§7.1 tách seed-master khỏi seed-demo; data trong migration cứng. Đây là vertical slice mẫu chứng minh toàn kiến trúc chạy end-to-end. Dữ liệu tỉnh/quận là seed pilot chỉnh sửa được (lưu ý cải cách hành chính 2025).
+- **Applies to:** `cmd/seed`, `internal/{domain,repository,service}/location.go`, `internal/api/{dto,handler}/location.go`, `internal/api/router.go`; xem task `.kit/tasks/004-master-data-and-provinces-api.md`.

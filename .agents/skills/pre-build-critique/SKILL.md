@@ -16,7 +16,7 @@ Challenge a change *before* it is built — this is the checkpoint that stops th
 
 ## Workflow
 1. State the change in one plain sentence: what will you build, and for which task.
-2. Challenge it through **every** lens below. For each, write a one-line finding (or "n/a — why"):
+2. Challenge it through **every** lens below. For each, write a finding with its *why* and the *consequence if ignored* (or "n/a — why") — not a bare "looks fine". For real depth (options, second-order effects, steelman) lean on the **senior-reasoning** skill:
    - **Correctness / regression** — what could break? which edge cases and existing tests are in scope?
    - **Security & data** — new attack surface, secrets/PII, destructive or irreversible data ops? (never skip this one)
    - **Consistency** — does it add a second way to do something, or contradict the Decision Log / an invariant?
@@ -30,7 +30,7 @@ Challenge a change *before* it is built — this is the checkpoint that stops th
 ```md
 ## Change (one sentence)
 ## Lenses
-| Lens | Finding | Risk |
+| Lens | Finding — *why it matters* + the consequence if ignored | Risk |
 |---|---|---|
 | Correctness | … | low/med/high |
 | Security & data | … | low/med/high |
@@ -38,6 +38,7 @@ Challenge a change *before* it is built — this is the checkpoint that stops th
 | Simplicity | … | low/med/high |
 | Reversibility (one-way / two-way door) | … | low/med/high |
 | Pre-mortem (most likely failure) | … | low/med/high |
+## Steelman (strongest case against building this) → response
 ## Verdict (go / adjust / stop) + why
 ## Gate token written
 ```
