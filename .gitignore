@@ -37,3 +37,9 @@ Thumbs.db
 # --- Logs & tmp ---
 *.log
 tmp/
+
+# --- Agent kit runtime state (regenerated / local — not shared) ---
+.smkit-backup/
+.kit/build-manifest.json
+.kit/audit.log
+.kit/state/
