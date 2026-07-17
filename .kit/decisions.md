@@ -23,3 +23,13 @@
 - **Decision:** Đổi `project.language` sang `vi`; đổi `stack.profile` sang `[go, nextjs]` với `roots.nextjs = apps/web` (Go ở gốc repo). Rebuild kit.
 - **Why:** Toàn bộ tài liệu/UI bằng tiếng Việt; backend Go + frontend Next.js (monorepo) theo coding standards. Trước đó config để `en`/`generic` do cài đặt zero-question.
 - **Applies to:** `kit.config.yaml`, các rule sinh ra (`go-conventions`, `nextjs-conventions`).
+
+## 2026-07-17 — Công cụ migration = goose
+- **Decision:** Dùng **goose** cho database migration (không dùng golang-migrate). Mỗi file 1 mục tiêu, tên `YYYYMMDDHHMMSS_description.sql`, có block `-- +goose Up`/`-- +goose Down`; timestamp sinh bằng lệnh, không gõ tay.
+- **Why:** Coding standards §7.1 nêu tên file `.sql` đơn (không tách `.up/.down`) → khớp định dạng goose. Down migration cho phép rollback thật, thỏa evidence gate cho thay đổi schema.
+- **Applies to:** `db/migrations/`, `Makefile` (`migrate-up/down/status`), `scripts/verify-migrations.sh`.
+
+## 2026-07-17 — Nền móng: khung repo + schema database
+- **Decision:** Dựng khung monorepo theo coding standards §3 và tạo toàn bộ schema v3.3 bằng 9 migration chia theo domain (27 bảng, 15 enum, 1 view, 8 trigger `updated_at`). Verify bằng Postgres 16 trong Docker (apply psql, không cần Go).
+- **Why:** Go chưa được cài trên máy dev → chọn lớp nền có giá trị nhất và verify được ngay là database. Go API server và Next.js app hoãn sang lát sau.
+- **Applies to:** toàn repo; xem task `.kit/tasks/001-foundation-db-schema.md`.

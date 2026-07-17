@@ -1,17 +1,17 @@
 # [TASK-001] Nền móng: khung repo + schema database (migration đầu tiên)
 
-- **Status:** in-progress
+- **Status:** in-review (nhánh feature/foundation-db-schema đã commit; chờ founder duyệt)
 - **Owner:** vuongstus
-- **Branch:** feature/foundation-db-schema · **PR:** (chưa mở — repo mới init, chưa có remote)
+- **Branch:** feature/foundation-db-schema · **PR:** (chưa mở — chưa có git remote)
 - **Mode:** vibe
 
 ## Gate status
 - [x] **Challenge** (pre-build critique) — **go** (critique nén, xem mục Decisions)
 - [x] **Impact map** — greenfield, DB rỗng; không có caller/job/event nào đang chạy để phá vỡ
-- [ ] **Review** (correctness + consistency)
-- [ ] **Tests** pass (evidence — apply migration lên Postgres rỗng trong Docker + test rollback)
-- [ ] **Required artifacts** present (schema change → migration + rollback: có down migration cho mỗi file)
-- [ ] **Approval** (schema) — n/a lúc này (chưa có production; approver list rỗng → self-approve)
+- [x] **Review** (correctness + consistency) — khớp spec (27 bảng/15 enum đúng số); theo chuẩn §3/§7; không dùng DROP CASCADE; goose đã ghi Decision Log
+- [x] **Tests** pass — Postgres 16 (Docker): up apply sạch 9/9 file → 27 bảng, 15 enum, 1 view, 8 trigger; down rollback → 0 bảng, 0 enum
+- [x] **Required artifacts** present — schema change: mỗi migration có block Down (rollback) + verify roundtrip đã chạy
+- [x] **Approval** (schema) — n/a (chưa có production; approver list rỗng → self-approve)
 
 ## Scope
 - **In:** Init git repo; dựng khung thư mục monorepo theo coding standards §3; viết migration goose đầu tiên tạo toàn bộ schema v3.3 (extensions, functions, enums, tables, indexes, view, triggers), chia theo domain; verify bằng Postgres trong Docker (apply lên DB rỗng + rollback).
