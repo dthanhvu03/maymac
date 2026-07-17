@@ -48,9 +48,13 @@ func run() error {
 	locationSvc := service.NewLocationService(locationRepo)
 	locationHandler := handler.NewLocationHandler(locationSvc)
 
+	profileRepo := repository.NewProfileRepository(pool)
+	profileSvc := service.NewProfileService(profileRepo)
+	profileHandler := handler.NewProfileHandler(profileSvc)
+
 	srv := &http.Server{
 		Addr:         cfg.HTTPAddr,
-		Handler:      api.NewRouter(logger, pool, locationHandler),
+		Handler:      api.NewRouter(logger, pool, locationHandler, profileHandler),
 		ReadTimeout:  cfg.HTTPReadTimeout,
 		WriteTimeout: cfg.HTTPWriteTimeout,
 		IdleTimeout:  cfg.HTTPIdleTimeout,

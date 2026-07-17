@@ -18,7 +18,7 @@ import (
 )
 
 // NewRouter trả về http.Handler đã gắn middleware, endpoint health và API.
-func NewRouter(logger *slog.Logger, pool *pgxpool.Pool, location *handler.LocationHandler) http.Handler {
+func NewRouter(logger *slog.Logger, pool *pgxpool.Pool, location *handler.LocationHandler, profiles *handler.ProfileHandler) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(chimw.RequestID)
@@ -56,6 +56,7 @@ func NewRouter(logger *slog.Logger, pool *pgxpool.Pool, location *handler.Locati
 	// API nghiệp vụ.
 	r.Route("/api", func(api chi.Router) {
 		api.Get("/provinces", location.ListProvinces)
+		api.Get("/profiles", profiles.List)
 	})
 
 	return r

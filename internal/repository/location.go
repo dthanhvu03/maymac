@@ -59,3 +59,27 @@ func (r *LocationRepository) UpsertDistrict(ctx context.Context, d domain.Distri
 	}
 	return nil
 }
+
+func (r *LocationRepository) UpsertCategory(ctx context.Context, slug, nameVi string, sortOrder int32) error {
+	err := r.q.UpsertCategory(ctx, sqlcgen.UpsertCategoryParams{
+		Slug:      slug,
+		NameVi:    nameVi,
+		SortOrder: sortOrder,
+	})
+	if err != nil {
+		return fmt.Errorf("repository: upsert category %q: %w", slug, err)
+	}
+	return nil
+}
+
+func (r *LocationRepository) ListCategories(ctx context.Context) ([]domain.Category, error) {
+	rows, err := r.q.ListCategories(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("repository: list categories: %w", err)
+	}
+	cats := make([]domain.Category, 0, len(rows))
+	for _, row := range rows {
+		cats = append(cats, domain.Category{ID: row.ID, Slug: row.Slug, NameVi: row.NameVi})
+	}
+	return cats, nil
+}
