@@ -1,0 +1,38 @@
+# --- Ignore cursor AI rules ---
+.cursor/rules/codacy.mdc
+
+# --- Go ---
+/bin/
+*.exe
+*.test
+*.out
+vendor/
+
+# --- Node / Next.js (apps/web) ---
+node_modules/
+.pnp
+.pnp.js
+apps/web/.next/
+apps/web/out/
+apps/web/build/
+apps/web/.turbo/
+apps/web/coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# --- Env & secrets (never commit) ---
+.env
+.env.*
+!.env.example
+*.pem
+
+# --- Editors / OS ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# --- Logs & tmp ---
+*.log
+tmp/

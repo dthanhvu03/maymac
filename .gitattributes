@@ -1,0 +1,11 @@
+# Chuẩn hóa line ending trong repo: mặc định LF, để tránh lỗi CRLF trên script/SQL.
+* text=auto eol=lf
+
+# Nhị phân — không đụng.
+*.svg   binary
+*.png   binary
+*.jpg   binary
+*.pdf   binary
+
+# Scripts shell bắt buộc LF (CRLF sẽ làm bash lỗi).
+*.sh    text eol=lf
