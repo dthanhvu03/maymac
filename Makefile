@@ -12,8 +12,12 @@ export GOOSE_DBSTRING
         migrate-up migrate-down migrate-status seed-master seed-demo \
         openapi-validate ci db-up db-down verify-migrations
 
-setup:            ## Cài công cụ dev (Go tools, pnpm deps) — bổ sung khi có Go
-	@echo "TODO: cài goose, sqlc; (cd apps/web && pnpm install)"
+GOBIN ?= $(CURDIR)/bin
+
+setup:            ## Cài công cụ dev (goose, sqlc) vào ./bin
+	GOBIN=$(GOBIN) go install github.com/pressly/goose/v3/cmd/goose@latest
+	GOBIN=$(GOBIN) go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+	@echo "goose + sqlc đã cài vào $(GOBIN)"
 
 dev:              ## Chạy server + web ở chế độ dev
 	@echo "TODO: chạy cmd/server + apps/web (cần Go)"
@@ -30,8 +34,8 @@ test:             ## Unit test
 test-integration: ## Integration test (cần DB)
 	@echo "TODO: go test -tags=integration ./..."
 
-generate:         ## Sinh code (sqlc)
-	@echo "TODO: sqlc generate"
+generate:         ## Sinh code (sqlc) từ db/queries + db/migrations
+	$(GOBIN)/sqlc generate
 
 # --- Database migrations (goose) ---
 db-up:            ## Bật Postgres tạm trong Docker (port 55432)
@@ -41,13 +45,13 @@ db-down:          ## Dừng & xóa Postgres tạm
 	docker rm -f maymac-pg
 
 migrate-up:       ## Áp dụng tất cả migration
-	goose -dir $(MIGRATIONS_DIR) up
+	$(GOBIN)/goose -dir $(MIGRATIONS_DIR) up
 
 migrate-down:     ## Rollback 1 migration
-	goose -dir $(MIGRATIONS_DIR) down
+	$(GOBIN)/goose -dir $(MIGRATIONS_DIR) down
 
 migrate-status:   ## Trạng thái migration
-	goose -dir $(MIGRATIONS_DIR) status
+	$(GOBIN)/goose -dir $(MIGRATIONS_DIR) status
 
 verify-migrations: ## Verify migration bằng psql trong container (không cần Go)
 	bash scripts/verify-migrations.sh
