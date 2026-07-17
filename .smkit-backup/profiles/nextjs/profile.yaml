@@ -1,0 +1,15 @@
+# Next.js profile — opinionated defaults so the agent never re-decides structure.
+id: nextjs
+description: Next.js (App Router) + TypeScript. One way to do each thing.
+
+rules:
+  - rules/conventions.md
+
+defaults:
+  test: "npm test"
+  lint: "npm run lint"
+  build: "npm run build"
+
+invariants:
+  - path: "app/**/route.ts"
+    rule: "API routes validate input and return typed responses; no business logic in the route body."

@@ -31,6 +31,20 @@ the stack conventions (casing/layout).
 - **One way per thing** (consistency-guard): reuse the existing approach; record any new
   one in the Decision Log.
 
+## Data & algorithms — fit the shape to the work
+- **Match the container to the access.** Look-up or membership by key — especially inside a
+  loop — belongs in a `Map`/`Set` (O(1)), not a repeated `.find()` / `.includes()` / `in`
+  scan over a list (O(n)). A scan nested inside a loop is the usual accidental **O(n²)**.
+- **Index one side, then one pass.** To join two collections, build a `Map` of one and
+  iterate the other once — don't nest-scan both.
+- **Compute once.** Hoist loop-invariant work out of the loop; cache a reused result
+  instead of recomputing; don't re-sort / re-filter the same list repeatedly.
+- **Right approach beats micro-tuning.** Choosing the fitting structure and an early exit
+  matters far more than hand-optimizing a poor one.
+- **But don't over-engineer (YAGNI).** For small, bounded data, a plain array and clear
+  code win; reach for the heavier structure only when the size can actually grow or the
+  path is hot. Measure before micro-optimizing.
+
 ## OOP — with restraint
 - **Composition over inheritance** — prefer small collaborating objects/functions to deep
   class hierarchies.

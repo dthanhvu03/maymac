@@ -9,11 +9,15 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, exist
 import { tmpdir, platform } from "node:os";
 import { join, dirname, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseYaml, parseFrontmatter } from "./yaml.mjs";
+import { parseYaml, parseFrontmatter, YamlError } from "./yaml.mjs";
 import { validateConfig, resolveOutDir } from "./validate.mjs";
 import { applyPlanTransactional } from "./apply.mjs";
+import { mergeClaudeSettings } from "./settings-merge.mjs";
+import { hookHashes } from "./integrity.mjs";
+import { parseEstimate } from "./estimate.mjs";
+import { runEval } from "./eval.mjs";
 import { collectSkills, collectRules, collectBuildWarnings, validateSkillGovernance, validateRoleGovernance, validateRuleGovernance, roleEffective, ruleEffective, estimateTokenBudget, profileList, profileRoot } from "../../engine/emitter.mjs";
-import { makeMatcher, matchesBlock, DEFAULT_BLOCK, classifyCommand, splitSegments, critiqueGateDecision, isGateExempt } from "../../.kit/hooks/_lib.mjs";
+import { makeMatcher, matchesBlock, DEFAULT_BLOCK, classifyCommand, splitSegments, critiqueGateDecision, isGateExempt, gateTokenValid, currentTaskId } from "../../.kit/hooks/_lib.mjs";
 
 const KIT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const GOLDEN = join(KIT, "test", "golden");
@@ -1032,6 +1036,75 @@ test("manifest: hand-edited generated file is protected without --force, replace
   assert.ok(!/TAMPERED/.test(readFileSync(gen, "utf8")), "--force replaces it");
 });
 
+test("collision: first install backs up a pre-existing user file before overwriting it", () => {
+  const proj = mkTmp("kit-collide-");
+  // the user already has files at paths the kit will generate
+  mkdirSync(join(proj, ".claude"), { recursive: true });
+  writeFileSync(join(proj, "CLAUDE.md"), "MY OWN NOTES\n");
+  writeFileSync(join(proj, ".claude", "settings.json"), '{"MY_CUSTOM":true}\n');
+  const r = runInit(proj, "--name", "C", "--stack", "generic", "--mode", "vibe", "--lang", "en", "--agents", "claude");
+  assert.equal(r.status, 0, r.stderr || r.stdout);
+  // overwritten with kit content, but the original is preserved next to it as .bak
+  assert.ok(!/MY OWN NOTES/.test(readFileSync(join(proj, "CLAUDE.md"), "utf8")), "kit content is now in place");
+  assert.equal(readFileSync(join(proj, "CLAUDE.md.bak"), "utf8"), "MY OWN NOTES\n", "original CLAUDE.md preserved in .bak");
+  assert.match(readFileSync(join(proj, ".claude", "settings.json.bak"), "utf8"), /MY_CUSTOM/, "original settings.json preserved in .bak");
+});
+
+test("settings-merge: preserves user keys, unions deny + hooks, idempotent", () => {
+  const user = {
+    permissions: { allow: ["Bash(ls:*)"], deny: ["Read(./secret)"] },
+    hooks: { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: "my-own-hook" }] }] },
+    env: { MY_VAR: "1" },
+    mcpServers: { mine: {} },
+  };
+  const kit = {
+    $schema: "kit-schema",
+    permissions: { deny: ["Bash(rm -rf:*)"] },
+    hooks: {
+      PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: "node guard-shell.mjs" }] }],
+      SessionStart: [{ hooks: [{ type: "command", command: "node session-start.mjs" }] }],
+    },
+  };
+  const m = mergeClaudeSettings(user, kit);
+  assert.deepEqual(m.env, { MY_VAR: "1" }, "unrelated user keys preserved");
+  assert.deepEqual(m.mcpServers, { mine: {} });
+  assert.deepEqual(m.permissions.allow, ["Bash(ls:*)"], "user allow preserved");
+  assert.ok(m.permissions.deny.includes("Read(./secret)") && m.permissions.deny.includes("Bash(rm -rf:*)"), "deny unioned");
+  assert.equal(m.hooks.PreToolUse.length, 2, "user hook kept AND kit hook added");
+  assert.ok(m.hooks.SessionStart, "kit event added");
+  assert.deepEqual(mergeClaudeSettings(m, kit), m, "idempotent — re-merging changes nothing");
+});
+
+test("settings-merge: install into a project with existing settings keeps user hooks + permissions, drift stays clean", () => {
+  const proj = mkTmp("kit-settings-");
+  mkdirSync(join(proj, ".claude"), { recursive: true });
+  writeFileSync(join(proj, ".claude", "settings.json"), JSON.stringify({
+    permissions: { allow: ["Bash(npm test:*)"] },
+    hooks: { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: "my-own-guard" }] }] },
+    env: { KEEP_ME: "yes" },
+  }, null, 2) + "\n");
+  assert.equal(runInit(proj, "--name", "S", "--stack", "generic", "--mode", "vibe", "--lang", "en", "--agents", "claude").status, 0);
+
+  const s = JSON.parse(readFileSync(join(proj, ".claude", "settings.json"), "utf8"));
+  assert.deepEqual(s.env, { KEEP_ME: "yes" }, "user env still live in the merged file");
+  assert.ok(s.permissions.allow.includes("Bash(npm test:*)"), "user allow still live");
+  assert.ok(s.hooks.PreToolUse.some((e) => e.hooks?.[0]?.command === "my-own-guard"), "user hook kept");
+  assert.ok(s.hooks.PreToolUse.some((e) => /guard-shell/.test(e.hooks?.[0]?.command || "")), "kit guard hook added");
+  assert.ok(s.hooks.SessionStart, "kit session-start hook added");
+  assert.ok((s.permissions.deny || []).some((d) => /rm -rf/.test(d)), "kit deny added");
+  assert.ok(existsSync(join(proj, ".claude", "settings.json.bak")), "original still backed up (0.1.8 safety net)");
+
+  // idempotent merge → the CI drift check is clean right after install
+  const chk = spawnSync(process.execPath, [join(proj, "tools", "kitgen", "kitgen.mjs"), "check"],
+    { cwd: proj, env: { ...process.env, CLAUDE_PROJECT_DIR: proj }, encoding: "utf8" });
+  assert.equal(chk.status, 0, `check must be clean after a settings merge: ${chk.stdout}${chk.stderr}`);
+  // doctor is clean too — the settings.json.bak we created must not be flagged as an
+  // unexpected stray file in a kit-owned directory.
+  const doc = spawnSync(process.execPath, [join(proj, "tools", "kitgen", "kitgen.mjs"), "doctor"],
+    { cwd: proj, env: { ...process.env, CLAUDE_PROJECT_DIR: proj }, encoding: "utf8" });
+  assert.match(doc.stdout, /0 error\(s\), 0 warning\(s\)/, `doctor must be clean after merge: ${doc.stdout}`);
+});
+
 // ---- P0.3: transactional generation (rollback on mid-write failure) -------
 test("transaction: a mid-write failure rolls back — earlier overwrite is restored", () => {
   const tmp = mkTmp("kit-tx-");
@@ -1130,7 +1203,7 @@ test("estimateTokenBudget: itemizes always-loaded vs on-demand, labels itself as
   assert.ok(b.alwaysLoaded.total > 0);
   assert.ok(b.alwaysLoaded.rules.tokens >= 0 && b.onDemand.pathScopedRules.tokens >= 0);
   assert.ok(b.alwaysLoaded.roleCatalog.items.length === 12, "one catalog item per shipped role");
-  assert.ok(b.alwaysLoaded.skillCatalog.items.length === 11, "one catalog item per shipped skill");
+  assert.ok(b.alwaysLoaded.skillCatalog.items.length === 12, "one catalog item per shipped skill");
   // sanity: on-demand skill bodies must be larger than the always-loaded skill catalog
   // (full instructions vs name+description only) — proves the tiers are real, not equal.
   assert.ok(b.onDemand.skillBodies.tokens > b.alwaysLoaded.skillCatalog.tokens);
@@ -1363,4 +1436,185 @@ test("update: refuses a downgrade and leaves the project untouched", () => {
   assert.match(r.stderr + r.stdout, /downgrade/i);
   assert.equal(readFileSync(rulePath, "utf8"), before, "a refused downgrade must not touch the project");
   assert.ok(!existsSync(join(proj, ".smkit-backup")), "a refused downgrade must not even start a backup");
+});
+
+// ---- fuzz / property tests: hostile input must degrade safely --------------
+// Deterministic PRNG so a failure is reproducible (Math.random would not be).
+function lcg(seed) { let s = seed >>> 0; return () => (s = (s * 1664525 + 1013904223) >>> 0) / 2 ** 32; }
+
+test("fuzz: parseYaml never crashes uncontrolled — it returns or throws a YamlError with code+line", () => {
+  const rand = lcg(0xC0FFEE);
+  const alpha = "abc:-\n \t{}[]&*!|>#\"'0123.,";
+  const seeds = ["", ":", "a:", "  a: b\n\tb: c", "- - -", "{{{", "a: &x", "|\n b",
+    "a:\n b:\n  c:\n   d:", "\n\n\n", "a: [1,2]", "#c", 'k: "unterminated', "\t- x"];
+  const inputs = [...seeds];
+  for (let i = 0; i < 3000; i++) {
+    const n = 1 + Math.floor(rand() * 60); let s = "";
+    for (let j = 0; j < n; j++) s += alpha[Math.floor(rand() * alpha.length)];
+    inputs.push(s);
+    const b = seeds[Math.floor(rand() * seeds.length)];
+    inputs.push(b.slice(0, Math.floor(rand() * (b.length + 1))) + alpha[Math.floor(rand() * alpha.length)]);
+  }
+  for (const inp of inputs) {
+    try { parseYaml(inp); }
+    catch (e) {
+      assert.ok(e instanceof YamlError, `hostile input must fail as YamlError, got ${e?.name}: ${JSON.stringify(inp)}`);
+      assert.ok(e.code && typeof e.line === "number", `YamlError must carry code + line: ${JSON.stringify(inp)}`);
+    }
+  }
+});
+
+test("fuzz: classifyCommand never throws on arbitrary input", () => {
+  const rand = lcg(0xBADF00D);
+  const alpha = "rm -rf/~.;|&$()`'\"\n\t abcdDROP TABLEgitpush--force012";
+  for (let i = 0; i < 4000; i++) {
+    const n = Math.floor(rand() * 90); let s = "";
+    for (let j = 0; j < n; j++) s += alpha[Math.floor(rand() * alpha.length)];
+    assert.doesNotThrow(() => classifyCommand(s, { mode: "strict", projDir: "/w/app" }));
+  }
+});
+
+test("property: a dangerous command stays caught under whitespace obfuscation", () => {
+  const rand = lcg(0x5EED);
+  const dangerous = ["rm -rf /", "rm -rf ~", "git push --force", "git push -f",
+    "git reset --hard", "DROP TABLE users", "DROP DATABASE app", "TRUNCATE orders"];
+  for (const base of dangerous) {
+    for (let i = 0; i < 40; i++) {
+      const obf = base.replace(/ /g, () => (rand() < 0.5 ? "  " : " \t")); // extra whitespace preserves the danger
+      const r = classifyCommand(obf, { mode: "strict", projDir: "/w/app" });
+      assert.notEqual(r.decision, "allow", `whitespace-obfuscated dangerous command must not be allowed: ${JSON.stringify(obf)}`);
+    }
+  }
+});
+
+// ---- integrity + audit trail (batch C hardening) --------------------------
+test("integrity: doctor flags a vendored hook modified since install", () => {
+  const tmp = copyKit();
+  runKit(tmp, "build");
+  assert.match(runKit(tmp, "doctor").stdout, /HOOKS_INTEGRITY_OK/, "healthy hooks match shipped hashes");
+  editFile(join(tmp, ".kit", "hooks", "guard-shell.mjs"), /^/, "// tampered\n");
+  const r = runKit(tmp, "doctor");
+  assert.equal(r.status, 1, "a modified hook must fail doctor");
+  assert.match(r.stdout, /HOOKS_INTEGRITY_MISMATCH/);
+  assert.match(r.stdout, /guard-shell\.mjs/);
+});
+
+test("integrity: the shipped .hashes.json matches the actual hooks (release stays in sync)", () => {
+  const stored = JSON.parse(readFileSync(join(KIT, ".kit", "hooks", ".hashes.json"), "utf8")).files;
+  const current = hookHashes(join(KIT, ".kit", "hooks"));
+  assert.deepEqual(current, stored, "run `npm run integrity` after changing a hook");
+});
+
+test("audit: the guard records its block decision to .kit/audit.log", () => {
+  const tmp = copyKit();
+  const g = spawnSync(process.execPath, [join(tmp, ".kit", "hooks", "guard-shell.mjs")],
+    { input: '{"tool_input":{"command":"git push --force"}}', cwd: tmp,
+      env: { ...process.env, CLAUDE_PROJECT_DIR: tmp }, encoding: "utf8" });
+  assert.equal(g.status, 2, "dangerous command is blocked");
+  const entries = readFileSync(join(tmp, ".kit", "audit.log"), "utf8").trim().split("\n");
+  const last = JSON.parse(entries[entries.length - 1]);
+  assert.equal(last.decision, "block");
+  assert.match(last.cmd, /push --force/);
+});
+
+// ---- P1-#3: skill quality rubric catches a thin skill ---------------------
+test("skill rubric: a thin skill (no workflow/output/bar) is flagged SKILL_QUALITY_INCOMPLETE", () => {
+  const tmp = copyKit();
+  const dir = join(tmp, "engine", "skills", "thin-skill");
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, "SKILL.md"),
+    "---\nname: thin-skill\n" +
+    "description: Use when you want to test the rubric. Invoke to exercise it.\n" +
+    "license: Apache-2.0\nmetadata:\n  sixmen-trust-tier: \"T0\"\n---\n\n" +
+    "# Thin\nIt helps with a thing.\n"); // no ordered steps, no structure, no quality bar
+  const { warnings } = validateSkillGovernance(tmp, "en");
+  const hit = warnings.filter((w) => /SKILL_QUALITY_INCOMPLETE/.test(w) && /thin-skill/.test(w));
+  assert.equal(hit.length, 1, `expected one quality warning for thin-skill, got: ${warnings.join(" | ")}`);
+  assert.match(hit[0], /workflow/i);
+  assert.match(hit[0], /output/i);
+  assert.match(hit[0], /quality bar/i);
+});
+
+// ---- P1-#2: machine-readable estimate --------------------------------------
+test("estimate: a justified estimate parses clean; bad values are flagged", () => {
+  const good = "```yaml\nestimate:\n  complexity: M\n  effort_days: 2\n  confidence: 0.7\n  risk: medium\n  basis: \"two endpoints + a migration, no unknowns\"\n  deadline: none\n```";
+  assert.deepEqual(parseEstimate(good).warnings, [], "a complete, justified estimate has no warnings");
+
+  const bad = "```yaml\nestimate:\n  complexity: XL\n  effort_days: 20\n  confidence: 0.2\n  risk: extreme\n  basis: \"<why this size>\"\n```";
+  const w = parseEstimate(bad).warnings.join(" | ");
+  assert.match(w, /XL — slice/);
+  assert.match(w, /low confidence/);
+  assert.match(w, /risk must be one of/);
+  assert.match(w, /basis is empty/);
+});
+
+test("estimate: missing block is reported, and the shipped task template is a valid example", () => {
+  assert.match(parseEstimate("# a task with no estimate").warnings.join(""), /no machine-readable estimate/);
+  const tpl = readFileSync(join(KIT, ".kit", "task.template.md"), "utf8");
+  const { estimate, warnings } = parseEstimate(tpl);
+  assert.ok(estimate && estimate.complexity === "M", "template carries a parseable estimate block");
+  assert.deepEqual(warnings, [], `template estimate should validate clean: ${warnings.join(" | ")}`);
+});
+
+// ---- P1-#1: per-task critique gate ----------------------------------------
+test("gate: token is session-scoped with no active task, per-task when one is set", () => {
+  const tmp = mkTmp("kit-gate-");
+  mkdirSync(join(tmp, ".kit", "state"), { recursive: true });
+  const gate = join(tmp, ".kit", "state", "gate.json");
+  const curTask = join(tmp, ".kit", "state", "current-task");
+
+  assert.equal(gateTokenValid(tmp), false, "no token → invalid");
+  writeFileSync(gate, JSON.stringify({ decision: "go" }));
+  assert.equal(gateTokenValid(tmp), true, "decision present, no active task → valid (session scope, backward-compatible)");
+  writeFileSync(gate, JSON.stringify({ decision: "   " }));
+  assert.equal(gateTokenValid(tmp), false, "empty decision → invalid");
+
+  writeFileSync(curTask, "task-A\n");
+  writeFileSync(gate, JSON.stringify({ decision: "go", task: "task-A" }));
+  assert.equal(gateTokenValid(tmp), true, "token for the active task opens the gate");
+  writeFileSync(gate, JSON.stringify({ decision: "go", task: "task-B" }));
+  assert.equal(gateTokenValid(tmp), false, "token for a DIFFERENT task must not open the gate");
+  writeFileSync(gate, JSON.stringify({ decision: "go" }));
+  assert.equal(gateTokenValid(tmp), false, "a taskless token doesn't open the gate while a task is active");
+  assert.equal(currentTaskId(tmp), "task-A");
+});
+
+// ---- P1-#4: eval harness ---------------------------------------------------
+test("eval: the kit passes its own hard-tier guardrail scorecard", () => {
+  const results = runEval(KIT);
+  const failed = results.filter((r) => !r.pass);
+  assert.equal(failed.length, 0, `guardrail checks must all pass: ${failed.map((f) => f.name + (f.err ? ` (${f.err})` : "")).join("; ")}`);
+  assert.ok(results.length >= 10, "eval covers the core guardrails");
+});
+
+test("eval: a broken guardrail would be caught (self-test the harness)", () => {
+  // The harness must actually FAIL when a predicate is false — prove it isn't vacuous.
+  const bad = [["always false", () => false]];
+  const r = bad.map(([name, fn]) => ({ name, pass: !!fn() }));
+  assert.equal(r.filter((x) => x.pass).length, 0);
+});
+
+// ---- 0.1.14: update self-heal (don't trust the stamp blindly) -------------
+test("update: same version but DRIFTED source is re-synced (self-heal)", () => {
+  const proj = copyKit();
+  const rulePath = join(proj, "engine", "rules", "00-hard-rules.md");
+  const pkgVer = JSON.parse(readFileSync(join(KIT, "package.json"), "utf8")).version;
+  writeFileSync(join(proj, ".kit", ".smkit-version"), pkgVer + "\n");            // stamp == package
+  writeFileSync(rulePath, readFileSync(rulePath, "utf8").replace("Hard rules", "STALE DRIFT")); // but drifted
+  const r = spawnSync(process.execPath, [join(KIT, "tools", "kitgen", "update.mjs"), "--yes", "--no-build"],
+    { cwd: proj, env: { ...process.env, CLAUDE_PROJECT_DIR: proj }, encoding: "utf8" });
+  assert.equal(r.status, 0, r.stderr || r.stdout);
+  assert.match(r.stdout, /re-syncing/i, "matching stamp must NOT stop a re-sync when the source drifted");
+  assert.match(readFileSync(rulePath, "utf8"), /Hard rules/, "drifted source is restored from the package");
+});
+
+test("update: same version AND in sync → genuinely nothing to do", () => {
+  const proj = copyKit();
+  const pkgVer = JSON.parse(readFileSync(join(KIT, "package.json"), "utf8")).version;
+  writeFileSync(join(proj, ".kit", ".smkit-version"), pkgVer + "\n");
+  const r = spawnSync(process.execPath, [join(KIT, "tools", "kitgen", "update.mjs"), "--yes", "--no-build"],
+    { cwd: proj, env: { ...process.env, CLAUDE_PROJECT_DIR: proj }, encoding: "utf8" });
+  assert.equal(r.status, 0, r.stderr || r.stdout);
+  assert.match(r.stdout, /in sync/i);
+  assert.ok(!existsSync(join(proj, ".smkit-backup")), "an in-sync no-op must not even start a backup");
 });

@@ -21,8 +21,9 @@ a Changelog format, safe-rollout (reversible/canary/hermetic), and the full chec
 1. Confirm build/test/lint are green (run them; quote results — evidence gate).
 2. Check version bump + changelog entry match what changed.
 3. Confirm no secrets, no debug/temp files, no destructive migration without a plan.
-4. Confirm the generated config is in sync (`smkit check`) and `smkit doctor` is clean.
-5. Give an explicit go / no-go.
+4. Confirm the generated config is in sync (`smkit check`) and `smkit doctor` is clean (including the hook **integrity** check).
+5. **Guardrail-compliance check** (the soft-rule eval — see `docs/enforcement-and-evals.md`): for the change being shipped, confirm the kit's own process was actually followed — a critique gate token existed before code (`standard`/`strict`), the evidence gate is satisfied (tests run and quoted), no invariant was violated, and real decisions were logged (ADR). Skim `.kit/audit.log` for any `block`/`deny` that was worked around. A miss here is a process gap to fix, not a formality.
+6. Give an explicit go / no-go.
 
 ## Output format (required)
 ```md

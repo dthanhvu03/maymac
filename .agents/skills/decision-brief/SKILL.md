@@ -22,8 +22,9 @@ solution framing, Jobs-to-be-Done, MVP/smallest-slice, reversible vs irreversibl
 1. **Reframe** the request as the underlying problem and who has it (Jobs-to-be-Done, §1–§2 of the reference). State it in one plain sentence and confirm.
 2. **Explore options** — at least two ways to solve it (including the cheapest/manual one and "do nothing"), each with an honest trade-off. The smallest option that still teaches us something usually wins.
 3. **Size it roughly** — effort, cost, and the risk most likely to make it a waste. Label every number an estimate; never present a guess as a fact.
-4. **Isolate the founder's decision** — the one or two questions only they can answer (budget, audience, acceptable risk), asked in plain language.
-5. **Recommend** one option and define what "done" looks like in a sentence they would accept.
+4. **Classify reversibility** — is this a **two-way door** (cheap to undo → decide fast, don't over-analyze) or a **one-way door** (hard/expensive to reverse — a database, a data model, a pricing model, a public API → decide deliberately, and note the exit cost)? Spend the founder's attention where it's actually one-way.
+5. **Isolate the founder's decision** — the one or two questions only they can answer (budget, audience, acceptable risk), asked in plain language.
+6. **Recommend** one option and define what "done" looks like in a sentence they would accept.
 
 ## Output format (required)
 ```md
@@ -33,6 +34,7 @@ solution framing, Jobs-to-be-Done, MVP/smallest-slice, reversible vs irreversibl
 | Option | What it is | Trade-off | Rough effort (estimate) |
 |---|---|---|---|
 ## Cost & risk (estimates)
+## Reversibility (two-way door → decide fast · one-way door → decide deliberately)
 ## Smallest slice worth building
 ## Questions only the founder can answer
 ## Recommendation

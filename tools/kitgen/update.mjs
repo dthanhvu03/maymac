@@ -5,8 +5,8 @@
 // pulled from a fresh package:   npx @zusem/smkit@latest update
 //
 // Flags: --dry-run (show, write nothing) · --yes (no prompt) · --no-build · --force
-import { readFileSync, writeFileSync, existsSync, rmSync, cpSync, mkdirSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { readFileSync, writeFileSync, existsSync, rmSync, cpSync, mkdirSync, readdirSync } from "node:fs";
+import { join, dirname, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createInterface } from "node:readline/promises";
 import { spawnSync } from "node:child_process";
@@ -79,9 +79,41 @@ console.log(`\nsmkit update — ${oldVer}  →  ${newVer}\n`);
 console.log("  refresh (kit-owned):  engine/  profiles/  tools/  .kit/hooks/  .kit/*.template.md");
 console.log("  keep (yours):         kit.config.yaml  .kit/constitution.md  .kit/decisions.md  .kit/tasks/  .gitignore\n");
 
+// Whether the project's installed kit-owned files are byte-identical to this package.
+// Trusting the version STAMP alone is fragile — a stamp can advance while the source
+// stays stale (a bad prior update, a mixed npx cache). So on a same-version run we
+// compare actual content and re-sync if it drifted, instead of blindly doing nothing.
+const walkRel = (root) => {
+  const out = [];
+  const rec = (dir) => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const p = join(dir, e.name);
+      if (e.isDirectory()) rec(p); else out.push(relative(root, p));
+    }
+  };
+  if (existsSync(root)) rec(root);
+  return out;
+};
+function installedMatchesPackage() {
+  for (const d of REPLACE_DIRS) {
+    if (!existsSync(kp(d))) continue;
+    for (const rel of walkRel(kp(d))) {
+      const there = pp(d, rel);
+      if (!existsSync(there) || readFileSync(kp(d, rel), "utf8") !== readFileSync(there, "utf8")) return false;
+    }
+  }
+  for (const f of REPLACE_FILES)
+    if (existsSync(kp(f)) && (!existsSync(pp(f)) || readFileSync(kp(f), "utf8") !== readFileSync(pp(f), "utf8"))) return false;
+  return true;
+}
+
 if (oldVer === newVer && !FORCE && !DRY) {
-  console.log(`Already on ${newVer}. Nothing to do (use --force to re-copy anyway).`);
-  process.exit(0);
+  if (installedMatchesPackage()) {
+    console.log(`Already on ${newVer} and in sync with this package. Nothing to do.`);
+    process.exit(0);
+  }
+  console.log(`Stamped ${newVer}, but the installed kit files differ from this package — re-syncing them.`);
+  // fall through to confirm + refresh (self-heal a stale/drifted install)
 }
 
 async function confirm() {
@@ -136,7 +168,11 @@ console.log(`  ✓ refreshed to ${newVer}. Previous kit source backed up in .smk
 
 if (!NOBUILD) {
   console.log("\nRebuilding agent config…");
-  const r = spawnSync(process.execPath, [pp("tools", "kitgen", "kitgen.mjs"), "build"],
+  // --force: the engine was just fully replaced, so the generated output must sync to it
+  // completely. Without it, output left over from the old engine reads as "locally
+  // modified" and gets protected/skipped, leaving the project in drift (doctor errors).
+  // A user's hand-edit to a generated file is still saved to <file>.bak first (0.1.8).
+  const r = spawnSync(process.execPath, [pp("tools", "kitgen", "kitgen.mjs"), "build", "--force"],
     { stdio: "inherit", cwd: PROJECT_DIR, env: { ...process.env, CLAUDE_PROJECT_DIR: PROJECT_DIR } });
   if (r.error) { console.error(`\nRebuild couldn't start: ${r.error.message}. Restore from .smkit-backup/ if needed.`); process.exit(1); }
   if (r.status !== 0) { console.error(`\nRebuild failed (exit ${r.status}). Your files are intact; restore from .smkit-backup/ if needed.`); process.exit(r.status || 1); }

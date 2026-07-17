@@ -1,0 +1,35 @@
+{
+  "id": "agentsmd",
+  "displayName": "AGENTS.md (interchange)",
+  "verification": {
+    "status": "verified",
+    "verifiedAt": "2026-07-11",
+    "sourceType": "interchange-format",
+    "note": "AGENTS.md: whole-file interchange artifact; broadly read by multiple agents, never a source of truth (ADR-001). .agents/skills/: verified cross-tool skill discovery path — Codex reads $CWD/.agents/skills, $CWD/../.agents/skills, $REPO_ROOT/.agents/skills, $HOME/.agents/skills, /etc/codex/skills (learn.chatgpt.com/docs/build-skills); Gemini CLI reads .agents/skills/ and prioritizes it over its own native .gemini/skills/ (geminicli.com/docs/cli/skills/). Neither reads .claude/skills/."
+  },
+  "artifacts": [
+    "AGENTS.md",
+    ".agents/skills/*/SKILL.md"
+  ],
+  "features": {
+    "globalInstructions": "native",
+    "pathScopedRules": "unsupported",
+    "skills": "supported",
+    "commands": "unsupported",
+    "hooks": "unsupported",
+    "hardBlock": "unsupported",
+    "agentsMd": "native",
+    "runtimeRouter": "unsupported",
+    "progressiveDisclosure": "none",
+    "transactionalGeneration": "kit-owned",
+    "driftDetection": "kit-owned",
+    "ownershipManifest": "kit-owned",
+    "invocationControl": "unsupported",
+    "pathGatedSkillActivation": "unsupported"
+  },
+  "limitations": [
+    "AGENTS.md itself is whole-file only: no path scoping, no policy enforcement.",
+    ".agents/skills/ emits the STRICTLY PORTABLE Agent Skills frontmatter only (name, description, license, compatibility, metadata, allowed-tools) — Claude-only extensions (when_to_use, disable-model-invocation, paths) are never carried here.",
+    "Duplicate skill names across .agents/skills/ scope tiers are NOT merged by Codex — both remain selectable, so avoid relying on override-by-name across tiers."
+  ]
+}

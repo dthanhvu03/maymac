@@ -22,6 +22,7 @@ Intent → command:
 | Look at a diff / code without building | `/review` |
 | Check the project for inconsistency / drift | `/checkup` |
 | Record a decision that was made | `/decide` |
+| Something broke / a bug shipped — learn from it | `/postmortem` |
 | Hand finished work back to the owner to review / approve | `/handoff` |
 | Just a question or explanation | no command — answer directly |
 

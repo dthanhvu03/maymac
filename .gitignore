@@ -3,6 +3,7 @@
 
 # --- Go ---
 /bin/
+/.gobuild/
 *.exe
 *.test
 *.out

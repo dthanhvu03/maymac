@@ -1,8 +1,8 @@
 # [TASK-001] Nền móng: khung repo + schema database (migration đầu tiên)
 
-- **Status:** in-review (nhánh feature/foundation-db-schema đã commit; chờ founder duyệt)
+- **Status:** done (đã push lên GitHub `main` — commit baf226a)
 - **Owner:** vuongstus
-- **Branch:** feature/foundation-db-schema · **PR:** (chưa mở — chưa có git remote)
+- **Branch:** main · **Remote:** github.com/dthanhvu03/maymac (đã merge baseline LICENSE, push fast-forward)
 - **Mode:** vibe
 
 ## Gate status

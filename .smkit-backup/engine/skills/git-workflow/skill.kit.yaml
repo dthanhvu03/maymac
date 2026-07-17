@@ -1,0 +1,35 @@
+schemaVersion: 1
+id: git-workflow
+owner: platform-team
+version: "1.0.0"
+trustTier: T0
+provenance:
+  sourceRef: bundled
+  reviewStatus: approved
+invocation:
+  implicit: true
+  manual: true
+permissions:
+  # Runs git, so shell is requested; the guard-shell hook still blocks the dangerous
+  # commands (force-push, reset --hard, clean -fdx) regardless. No network.
+  requestedTools:
+    - read
+    - search
+    - shell
+  deniedTools:
+    - network
+  preApprovedTools: []
+execution:
+  network: false
+  executableScripts: false
+relatedRoles:
+  - git-manager
+  - devops
+relatedRules:
+  - hard-rules
+targets:
+  supported:
+    - claude
+    - cursor
+    - copilot
+    - windsurf

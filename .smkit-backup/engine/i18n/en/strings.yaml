@@ -1,0 +1,7 @@
+# English strings (default) for generated banners and CLAUDE.md scaffolding.
+generated_banner: "GENERATED — DO NOT EDIT. Edit engine/ or kit.config.yaml, then run: kit build"
+claude_intro: "Project agent instructions. Core rules live in .claude/rules/ (auto-loaded). Roles live in .claude/agents/."
+mode_note_vibe: "Mode: vibe — move fast, talk in plain language, keep the codebase consistent. Guardrails are always on."
+mode_note_standard: "Mode: standard — brief, self-review, and tests before done."
+mode_note_strict: "Mode: strict — full gate chain; human approval required for schema/prod/data."
+session_memory_note: "Read the Constitution (.kit/constitution.md) and Decision Log (.kit/decisions.md) before coding."

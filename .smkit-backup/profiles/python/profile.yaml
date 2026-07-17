@@ -1,0 +1,13 @@
+# Python profile — opinionated defaults so the agent never re-decides tooling.
+id: python
+description: Modern Python (3.11+) with ruff + pytest, src layout.
+
+rules:
+  - rules/conventions.md
+
+defaults:
+  test: "pytest"
+  lint: "ruff check ."
+  build: ""
+
+invariants: []

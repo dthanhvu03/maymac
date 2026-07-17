@@ -1,0 +1,40 @@
+schemaVersion: 1
+id: cross-review
+owner: platform-team
+version: "1.0.0"
+trustTier: T0
+provenance:
+  sourceRef: bundled
+  reviewStatus: approved
+invocation:
+  implicit: true
+  manual: true
+permissions:
+  # Read-only analysis; writing the converged decision goes to the Decision Log (.kit),
+  # which is exempt from the critique gate. Shell/network stay denied.
+  requestedTools:
+    - read
+    - search
+    - write
+  deniedTools:
+    - shell
+    - network
+  preApprovedTools: []
+execution:
+  network: false
+  executableScripts: false
+relatedRoles:
+  - orchestrator
+  - architect
+  - reviewer
+  - planner
+  - qa
+relatedRules:
+  - hard-rules
+  - consistency-guard
+targets:
+  supported:
+    - claude
+    - cursor
+    - copilot
+    - windsurf

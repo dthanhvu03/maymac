@@ -1,0 +1,16 @@
+# Generic profile — opinionated-but-neutral defaults for a web app / CLI / library.
+id: generic
+description: Default profile when no specific stack is chosen.
+
+# Extra rules this profile contributes (relative to profile dir).
+rules:
+  - rules/conventions.md
+
+# Suggested commands (used if project leaves stack.* empty).
+defaults:
+  test: ""
+  lint: ""
+  build: ""
+
+# Profile-level invariants merged into project invariants.
+invariants: []
