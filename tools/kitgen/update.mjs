@@ -180,4 +180,6 @@ if (!NOBUILD) {
 
 console.log(`\nDone — updated to ${newVer}. See CHANGELOG.md for what's new.`);
 console.log("If you had edited engine/ or profiles/ in place, re-apply those changes from .smkit-backup/.");
+// Self-contained install: no global `smkit` on PATH — show how to run commands here.
+console.log("Run kit commands here with: `node tools/kitgen/kitgen.mjs <doctor|build|check>`  (or `npm i -g @zusem/smkit` for the short `smkit` command).");
 process.exit(0);

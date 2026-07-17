@@ -311,9 +311,12 @@ dist/
 build/
 coverage/
 
-# Logs & dumps
+# Logs & DB dumps — NOT migrations. Migration files (goose / golang-migrate / prisma)
+# are SOURCE and must be committed, so never ignore *.sql broadly — only real dumps.
 *.log
-*.sql
+*.dump
+*.sql.gz
+/dumps/
 storage/logs/*
 
 # Kit runtime state (regenerated — not shared)
@@ -351,5 +354,10 @@ const nextStep = needsOnboard
       ? `Bước tiếp: mở AI tool rồi chạy /onboard — em sẽ đọc dự án "${answers.name}", điền constitution (làm gì · cho ai · điều cấm) để anh xác nhận.`
       : `Next: open your AI tool and run /onboard — it reads "${answers.name}" and fills the constitution (what you build · who uses it · what it must never do) for you to confirm.`)
   : `Open your AI tool and start building "${answers.name}".`;
-console.log(`\nDone. ${nextStep}\nRun \`node tools/kitgen/kitgen.mjs check\` in CI.`);
+// This is a SELF-CONTAINED install — there is no global `smkit` on PATH here. Show the
+// exact way to run kit commands in this project so the user doesn't hit "smkit: not found".
+const howToRun = answers.lang === "vi"
+  ? "Lệnh kit ở đây chạy bằng: `node tools/kitgen/kitgen.mjs <doctor|build|check>`  (hoặc `npm i -g @zusem/smkit` để có lệnh tắt `smkit`)."
+  : "Run kit commands here with: `node tools/kitgen/kitgen.mjs <doctor|build|check>`  (or `npm i -g @zusem/smkit` for the short `smkit` command).";
+console.log(`\nDone. ${nextStep}\n${howToRun}`);
 process.exit(0);

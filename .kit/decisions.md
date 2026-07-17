@@ -43,3 +43,8 @@
 - **Decision:** Thêm Windows Defender exclusion có giới hạn cho `D:\Zusem\maymac\bin` và `D:\Zusem\maymac\.gobuild`; build Go đặt `GOTMPDIR=D:\Zusem\maymac\.gobuild`.
 - **Why:** Defender false-positive xóa binary Go mới compile, chặn cả `go build`. Exclusion phạm vi hẹp (không tắt Defender toàn máy). Hoàn tác: `Remove-MpPreference -ExclusionPath <path>`.
 - **Applies to:** máy dev hiện tại; `.gitignore` đã bỏ qua `/bin/` và `/.gobuild/`.
+
+## 2026-07-17 — Wiring goose + sqlc
+- **Decision:** Migration chạy qua **goose** CLI (`goose_db_version` theo dõi state), **sqlc v1.31** sinh code từ `db/migrations` (schema) + `db/queries` (query). Tool dev cài bằng `make setup` vào `./bin` (không commit). Code sinh ra ở `internal/repository/sqlcgen/` **được commit**. Query khởi đầu: `db/queries/provinces.sql`.
+- **Why:** Đúng chuẩn §7 (goose) và §8 (sqlc, SQL review được, không ORM). sqlc bắt buộc có ≥1 query mới generate.
+- **Applies to:** `db/queries/`, `internal/repository/sqlcgen/`, `Makefile` (`setup`, `generate`, `migrate-*`); xem task `.kit/tasks/003-goose-sqlc-wiring.md`.

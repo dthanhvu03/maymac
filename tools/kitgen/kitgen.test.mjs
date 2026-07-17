@@ -1618,3 +1618,14 @@ test("update: same version AND in sync → genuinely nothing to do", () => {
   assert.match(r.stdout, /in sync/i);
   assert.ok(!existsSync(join(proj, ".smkit-backup")), "an in-sync no-op must not even start a backup");
 });
+
+// ---- 0.1.16: .gitignore must not drop migration source --------------------
+test("gitignore: never ignores migration *.sql (source); does ignore backups/dumps/state", () => {
+  const proj = mkTmp("kit-gitignore-");
+  assert.equal(runInit(proj, "--name", "G", "--stack", "go", "--mode", "vibe", "--lang", "en", "--agents", "claude").status, 0);
+  const gi = readFileSync(join(proj, ".gitignore"), "utf8");
+  assert.ok(!/^\*\.sql$/m.test(gi), "a bare *.sql would ignore goose/golang-migrate migration files (source!)");
+  assert.match(gi, /\.smkit-backup\//, "the update backup dir must be ignored");
+  assert.match(gi, /\.kit\/state\//, "kit runtime state must be ignored");
+  assert.match(gi, /\.env/, "secrets must be ignored");
+});
