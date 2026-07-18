@@ -27,6 +27,10 @@ type Config struct {
 
 	// AdminAPIToken bảo vệ nhóm route /api/admin. Rỗng = admin đóng (fail-closed).
 	AdminAPIToken string
+
+	// Rate limit công khai (per-IP, in-memory).
+	PublicRateLimitRPM   int
+	PublicRateLimitBurst int
 }
 
 // Load đọc Config từ env. Trả lỗi nếu thiếu biến bắt buộc.
@@ -47,6 +51,9 @@ func Load() (Config, error) {
 		DBIdleInTxSessionTimeout: getDur("DB_IDLE_IN_TRANSACTION_SESSION_TIMEOUT", 10*time.Second),
 
 		AdminAPIToken: os.Getenv("ADMIN_API_TOKEN"),
+
+		PublicRateLimitRPM:   getInt("PUBLIC_RATE_LIMIT_RPM", 120),
+		PublicRateLimitBurst: getInt("PUBLIC_RATE_LIMIT_BURST", 40),
 	}
 
 	if c.DatabaseURL == "" {

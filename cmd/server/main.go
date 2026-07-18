@@ -12,6 +12,7 @@ import (
 
 	"github.com/dthanhvu03/maymac/internal/api"
 	"github.com/dthanhvu03/maymac/internal/api/handler"
+	apimw "github.com/dthanhvu03/maymac/internal/api/middleware"
 	"github.com/dthanhvu03/maymac/internal/config"
 	"github.com/dthanhvu03/maymac/internal/observability"
 	"github.com/dthanhvu03/maymac/internal/repository"
@@ -56,9 +57,12 @@ func run() error {
 	briefSvc := service.NewBriefService(briefRepo)
 	briefHandler := handler.NewBriefHandler(briefSvc)
 
+	rateLimiter := apimw.NewIPRateLimiter(cfg.PublicRateLimitRPM, cfg.PublicRateLimitBurst)
+	defer rateLimiter.Close()
+
 	srv := &http.Server{
 		Addr:         cfg.HTTPAddr,
-		Handler:      api.NewRouter(logger, pool, cfg.AdminAPIToken, locationHandler, profileHandler, briefHandler),
+		Handler:      api.NewRouter(logger, pool, cfg.AdminAPIToken, rateLimiter, locationHandler, profileHandler, briefHandler),
 		ReadTimeout:  cfg.HTTPReadTimeout,
 		WriteTimeout: cfg.HTTPWriteTimeout,
 		IdleTimeout:  cfg.HTTPIdleTimeout,
