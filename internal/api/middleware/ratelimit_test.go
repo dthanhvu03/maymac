@@ -50,3 +50,28 @@ func TestRateLimit_PerIPIsolation(t *testing.T) {
 		t.Fatalf("IP B phải 200 (độc lập), nhận %d", code)
 	}
 }
+
+// Regression: kẻ tấn công đổi X-Forwarded-For mỗi request KHÔNG được tạo bucket mới —
+// limiter phải key theo TCP peer thật, bỏ qua header client tự đặt.
+func TestRateLimit_IgnoresForwardedForSpoofing(t *testing.T) {
+	rl := NewIPRateLimiter(1, 1) // burst=1: request thứ 2 từ cùng peer phải 429
+	defer rl.Close()
+	h := RateLimit(rl)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	call := func(xff string) int {
+		req := httptest.NewRequest(http.MethodGet, "/api/x", nil)
+		req.RemoteAddr = "9.9.9.9:1111" // cùng một TCP peer
+		req.Header.Set("X-Forwarded-For", xff)
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec.Code
+	}
+	if code := call("1.2.3.4"); code != http.StatusOK {
+		t.Fatalf("lần 1: %d, muốn 200", code)
+	}
+	if code := call("5.6.7.8"); code != http.StatusTooManyRequests {
+		t.Fatalf("lần 2 (XFF khác, cùng peer) phải 429, nhận %d — header đang bị dùng để tránh limit", code)
+	}
+}

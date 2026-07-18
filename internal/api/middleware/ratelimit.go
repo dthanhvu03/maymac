@@ -102,7 +102,9 @@ func RateLimit(rl *IPRateLimiter) func(http.Handler) http.Handler {
 	}
 }
 
-// clientIP tách host từ RemoteAddr (chi RealIP đã chuẩn hóa từ X-Forwarded-For).
+// clientIP lấy host từ RemoteAddr = TCP peer THẬT. Cố tình KHÔNG đọc X-Forwarded-For
+// (client tự đặt được → spoof được). Nếu sau này chạy sau reverse proxy tin cậy, việc
+// dịch XFF→client IP phải làm ở một middleware có trusted-proxy allowlist, không phải ở đây.
 func clientIP(r *http.Request) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
