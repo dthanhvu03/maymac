@@ -34,3 +34,21 @@ type BuyerBriefResult struct {
 	PublicToken string
 	Status      string
 }
+
+// BriefSummary là dòng brief trong queue admin (sau cổng auth — có contact buyer).
+type BriefSummary struct {
+	PublicToken    string
+	Status         string
+	BuyerName      string
+	BuyerPhone     string
+	CompanyOrBrand string
+	SubmittedAt    *time.Time
+}
+
+// BriefPage là một trang brief kèm tổng số.
+type BriefPage struct {
+	Items   []BriefSummary
+	Total   int64
+	Page    int
+	PerPage int
+}

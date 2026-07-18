@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/dthanhvu03/maymac/internal/api/dto"
 	"github.com/dthanhvu03/maymac/internal/domain"
 	"github.com/dthanhvu03/maymac/internal/service"
@@ -89,6 +91,61 @@ func (h *BriefHandler) writeSubmitError(w http.ResponseWriter, r *http.Request, 
 	default:
 		dto.WriteError(w, r, err)
 	}
+}
+
+// AdminList xử lý GET /api/admin/buyer-briefs (?status=&page=&per_page=).
+func (h *BriefHandler) AdminList(w http.ResponseWriter, r *http.Request) {
+	var statusFilter *string
+	if s := r.URL.Query().Get("status"); s != "" {
+		if !domain.IsBriefStatus(s) {
+			dto.WriteProblem(w, r, http.StatusUnprocessableEntity, "Trạng thái không hợp lệ", "", map[string][]string{"status": {"không phải trạng thái brief hợp lệ"}})
+			return
+		}
+		statusFilter = &s
+	}
+	page := atoiDefault(r.URL.Query().Get("page"), 1)
+	perPage := atoiDefault(r.URL.Query().Get("per_page"), 0)
+
+	result, err := h.svc.ListBriefs(r.Context(), statusFilter, page, perPage)
+	if err != nil {
+		dto.WriteError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, dto.NewBriefListResponse(result))
+}
+
+type transitionRequest struct {
+	ToStatus string `json:"to_status"`
+	Note     string `json:"note"`
+}
+
+// AdminTransition xử lý POST /api/admin/buyer-briefs/{token}/transition.
+func (h *BriefHandler) AdminTransition(w http.ResponseWriter, r *http.Request) {
+	token := chi.URLParam(r, "token")
+
+	var req transitionRequest
+	if err := json.NewDecoder(io.LimitReader(r.Body, maxBriefBodyBytes)).Decode(&req); err != nil {
+		dto.WriteProblem(w, r, http.StatusBadRequest, "JSON không hợp lệ", "", nil)
+		return
+	}
+	if !domain.IsBriefStatus(req.ToStatus) {
+		dto.WriteProblem(w, r, http.StatusUnprocessableEntity, "Trạng thái đích không hợp lệ", "", map[string][]string{"to_status": {"không phải trạng thái brief hợp lệ"}})
+		return
+	}
+
+	newStatus, err := h.svc.TransitionBrief(r.Context(), token, req.ToStatus, req.Note)
+	if err != nil {
+		switch {
+		case errors.Is(err, domain.ErrNotFound):
+			dto.WriteProblem(w, r, http.StatusNotFound, "Không tìm thấy brief", "", nil)
+		case errors.Is(err, domain.ErrConflict):
+			dto.WriteProblem(w, r, http.StatusConflict, "Chuyển trạng thái không hợp lệ", "", nil)
+		default:
+			dto.WriteError(w, r, err)
+		}
+		return
+	}
+	writeJSON(w, http.StatusOK, dto.BriefTransitionResponse{PublicToken: token, Status: newStatus})
 }
 
 func (req submitBriefRequest) toDomain() (domain.BuyerBriefInput, map[string][]string) {

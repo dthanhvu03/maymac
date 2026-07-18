@@ -14,12 +14,38 @@ type fakeBriefStore struct {
 	result   domain.BuyerBriefResult
 	replayed bool
 	err      error
+
+	// admin
+	transitionFrom   string
+	transitionErr    error
+	getForTransErr   error
+	transitionCalled bool
 }
 
 func (f *fakeBriefStore) SubmitBrief(_ context.Context, _ domain.BuyerBriefInput, publicToken, _, _ string) (domain.BuyerBriefResult, bool, error) {
 	f.called = true
 	f.gotToken = publicToken
 	return f.result, f.replayed, f.err
+}
+
+func (f *fakeBriefStore) ListBriefs(_ context.Context, _ *string, _, _ int32) ([]domain.BriefSummary, error) {
+	return nil, nil
+}
+
+func (f *fakeBriefStore) CountBriefs(_ context.Context, _ *string) (int64, error) {
+	return 0, nil
+}
+
+func (f *fakeBriefStore) GetBriefForTransition(_ context.Context, _ string) (int64, string, error) {
+	if f.getForTransErr != nil {
+		return 0, "", f.getForTransErr
+	}
+	return 1, f.transitionFrom, nil
+}
+
+func (f *fakeBriefStore) TransitionBrief(_ context.Context, _ int64, _, _, _ string) error {
+	f.transitionCalled = true
+	return f.transitionErr
 }
 
 func validInput() domain.BuyerBriefInput {
@@ -82,6 +108,38 @@ func TestBriefService_SubmitBrief_ValidCallsStore(t *testing.T) {
 	if replayed || res.Status != "submitted" {
 		t.Errorf("kết quả sai: %+v replayed=%v", res, replayed)
 	}
+}
+
+func TestBriefService_TransitionBrief(t *testing.T) {
+	t.Run("transition hợp lệ -> gọi store, trả status mới", func(t *testing.T) {
+		store := &fakeBriefStore{transitionFrom: domain.BriefStatusSubmitted}
+		svc := NewBriefService(store)
+		got, err := svc.TransitionBrief(context.Background(), "tok", domain.BriefStatusUnderReview, "")
+		if err != nil || got != domain.BriefStatusUnderReview || !store.transitionCalled {
+			t.Fatalf("got=%q err=%v called=%v", got, err, store.transitionCalled)
+		}
+	})
+
+	t.Run("transition không hợp lệ -> ErrConflict, không gọi store", func(t *testing.T) {
+		store := &fakeBriefStore{transitionFrom: domain.BriefStatusSubmitted}
+		svc := NewBriefService(store)
+		_, err := svc.TransitionBrief(context.Background(), "tok", domain.BriefStatusClosed, "")
+		if !errors.Is(err, domain.ErrConflict) {
+			t.Fatalf("mong ErrConflict, nhận %v", err)
+		}
+		if store.transitionCalled {
+			t.Error("không được gọi TransitionBrief khi transition sai")
+		}
+	})
+
+	t.Run("brief không tồn tại -> ErrNotFound", func(t *testing.T) {
+		store := &fakeBriefStore{getForTransErr: domain.ErrNotFound}
+		svc := NewBriefService(store)
+		_, err := svc.TransitionBrief(context.Background(), "khong-co", domain.BriefStatusUnderReview, "")
+		if !errors.Is(err, domain.ErrNotFound) {
+			t.Fatalf("mong ErrNotFound, nhận %v", err)
+		}
+	})
 }
 
 func TestBriefService_SubmitBrief_InvalidSkipsStore(t *testing.T) {

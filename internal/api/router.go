@@ -18,7 +18,7 @@ import (
 )
 
 // NewRouter trả về http.Handler đã gắn middleware, endpoint health và API.
-func NewRouter(logger *slog.Logger, pool *pgxpool.Pool, location *handler.LocationHandler, profiles *handler.ProfileHandler, briefs *handler.BriefHandler) http.Handler {
+func NewRouter(logger *slog.Logger, pool *pgxpool.Pool, adminToken string, location *handler.LocationHandler, profiles *handler.ProfileHandler, briefs *handler.BriefHandler) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(chimw.RequestID)
@@ -59,6 +59,13 @@ func NewRouter(logger *slog.Logger, pool *pgxpool.Pool, location *handler.Locati
 		api.Get("/profiles", profiles.List)
 		api.Get("/profiles/{slug}", profiles.Detail)
 		api.Post("/buyer-briefs", briefs.Submit)
+
+		// Nhóm admin — bảo vệ bằng bearer token (fail-closed nếu chưa cấu hình).
+		api.Route("/admin", func(admin chi.Router) {
+			admin.Use(apimw.AdminAuth(adminToken))
+			admin.Get("/buyer-briefs", briefs.AdminList)
+			admin.Post("/buyer-briefs/{token}/transition", briefs.AdminTransition)
+		})
 	})
 
 	return r

@@ -24,6 +24,9 @@ type Config struct {
 	DBMaxConnLifetime        time.Duration
 	DBStatementTimeout       time.Duration
 	DBIdleInTxSessionTimeout time.Duration
+
+	// AdminAPIToken bảo vệ nhóm route /api/admin. Rỗng = admin đóng (fail-closed).
+	AdminAPIToken string
 }
 
 // Load đọc Config từ env. Trả lỗi nếu thiếu biến bắt buộc.
@@ -42,6 +45,8 @@ func Load() (Config, error) {
 		DBMaxConnLifetime:        getDur("DB_MAX_CONN_LIFETIME", time.Hour),
 		DBStatementTimeout:       getDur("DB_STATEMENT_TIMEOUT", 5*time.Second),
 		DBIdleInTxSessionTimeout: getDur("DB_IDLE_IN_TRANSACTION_SESSION_TIMEOUT", 10*time.Second),
+
+		AdminAPIToken: os.Getenv("ADMIN_API_TOKEN"),
 	}
 
 	if c.DatabaseURL == "" {

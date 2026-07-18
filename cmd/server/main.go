@@ -58,7 +58,7 @@ func run() error {
 
 	srv := &http.Server{
 		Addr:         cfg.HTTPAddr,
-		Handler:      api.NewRouter(logger, pool, locationHandler, profileHandler, briefHandler),
+		Handler:      api.NewRouter(logger, pool, cfg.AdminAPIToken, locationHandler, profileHandler, briefHandler),
 		ReadTimeout:  cfg.HTTPReadTimeout,
 		WriteTimeout: cfg.HTTPWriteTimeout,
 		IdleTimeout:  cfg.HTTPIdleTimeout,

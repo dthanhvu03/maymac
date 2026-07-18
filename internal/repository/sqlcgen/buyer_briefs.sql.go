@@ -11,6 +11,50 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countBuyerBriefs = `-- name: CountBuyerBriefs :one
+SELECT count(*)
+FROM buyer_briefs
+WHERE ($1::brief_status IS NULL OR status = $1::brief_status)
+`
+
+func (q *Queries) CountBuyerBriefs(ctx context.Context, status *BriefStatus) (int64, error) {
+	row := q.db.QueryRow(ctx, countBuyerBriefs, status)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const getBuyerBriefByToken = `-- name: GetBuyerBriefByToken :one
+SELECT id, public_token, status, buyer_name, buyer_phone, company_or_brand, submitted_at
+FROM buyer_briefs
+WHERE public_token = $1
+`
+
+type GetBuyerBriefByTokenRow struct {
+	ID             int64
+	PublicToken    string
+	Status         BriefStatus
+	BuyerName      string
+	BuyerPhone     string
+	CompanyOrBrand *string
+	SubmittedAt    pgtype.Timestamptz
+}
+
+func (q *Queries) GetBuyerBriefByToken(ctx context.Context, publicToken string) (GetBuyerBriefByTokenRow, error) {
+	row := q.db.QueryRow(ctx, getBuyerBriefByToken, publicToken)
+	var i GetBuyerBriefByTokenRow
+	err := row.Scan(
+		&i.ID,
+		&i.PublicToken,
+		&i.Status,
+		&i.BuyerName,
+		&i.BuyerPhone,
+		&i.CompanyOrBrand,
+		&i.SubmittedAt,
+	)
+	return i, err
+}
+
 const insertBriefStatusHistory = `-- name: InsertBriefStatusHistory :exec
 INSERT INTO buyer_brief_status_history (buyer_brief_id, from_status, to_status, note)
 VALUES ($1, $2, $3, $4)
@@ -113,4 +157,88 @@ func (q *Queries) InsertBuyerBriefItem(ctx context.Context, arg InsertBuyerBrief
 		arg.MaterialNote,
 	)
 	return err
+}
+
+const listBuyerBriefs = `-- name: ListBuyerBriefs :many
+SELECT id, public_token, status, buyer_name, buyer_phone, company_or_brand,
+       submitted_at, created_at
+FROM buyer_briefs
+WHERE ($1::brief_status IS NULL OR status = $1::brief_status)
+ORDER BY submitted_at DESC NULLS LAST, id DESC
+LIMIT $3 OFFSET $2
+`
+
+type ListBuyerBriefsParams struct {
+	Status     *BriefStatus
+	PageOffset int32
+	PageSize   int32
+}
+
+type ListBuyerBriefsRow struct {
+	ID             int64
+	PublicToken    string
+	Status         BriefStatus
+	BuyerName      string
+	BuyerPhone     string
+	CompanyOrBrand *string
+	SubmittedAt    pgtype.Timestamptz
+	CreatedAt      pgtype.Timestamptz
+}
+
+// Queue admin: lọc theo status (tùy chọn), mới nhất trước.
+func (q *Queries) ListBuyerBriefs(ctx context.Context, arg ListBuyerBriefsParams) ([]ListBuyerBriefsRow, error) {
+	rows, err := q.db.Query(ctx, listBuyerBriefs, arg.Status, arg.PageOffset, arg.PageSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListBuyerBriefsRow
+	for rows.Next() {
+		var i ListBuyerBriefsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.PublicToken,
+			&i.Status,
+			&i.BuyerName,
+			&i.BuyerPhone,
+			&i.CompanyOrBrand,
+			&i.SubmittedAt,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateBriefStatus = `-- name: UpdateBriefStatus :execrows
+UPDATE buyer_briefs SET
+  status       = $1::brief_status,
+  reviewed_at  = CASE WHEN $1::brief_status = 'under_review' AND reviewed_at  IS NULL THEN now() ELSE reviewed_at  END,
+  qualified_at = CASE WHEN $1::brief_status = 'qualified'    AND qualified_at IS NULL THEN now() ELSE qualified_at END,
+  matched_at   = CASE WHEN $1::brief_status = 'matched'      AND matched_at   IS NULL THEN now() ELSE matched_at   END,
+  rejected_at  = CASE WHEN $1::brief_status = 'rejected'     AND rejected_at  IS NULL THEN now() ELSE rejected_at  END,
+  cancelled_at = CASE WHEN $1::brief_status = 'cancelled'    AND cancelled_at IS NULL THEN now() ELSE cancelled_at END,
+  closed_at    = CASE WHEN $1::brief_status = 'closed'       AND closed_at    IS NULL THEN now() ELSE closed_at    END
+WHERE id = $2 AND status = $3::brief_status
+`
+
+type UpdateBriefStatusParams struct {
+	ToStatus   BriefStatus
+	ID         int64
+	FromStatus BriefStatus
+}
+
+// Cập nhật atomic: chỉ đổi khi status hiện tại đúng bằng $2 (from). 0 dòng = đã đổi
+// dưới tay (race) -> caller trả 409. Set mốc timestamp tương ứng (§12.2).
+func (q *Queries) UpdateBriefStatus(ctx context.Context, arg UpdateBriefStatusParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateBriefStatus, arg.ToStatus, arg.ID, arg.FromStatus)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
