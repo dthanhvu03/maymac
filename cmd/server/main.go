@@ -52,9 +52,13 @@ func run() error {
 	profileSvc := service.NewProfileService(profileRepo)
 	profileHandler := handler.NewProfileHandler(profileSvc)
 
+	briefRepo := repository.NewBriefRepository(pool)
+	briefSvc := service.NewBriefService(briefRepo)
+	briefHandler := handler.NewBriefHandler(briefSvc)
+
 	srv := &http.Server{
 		Addr:         cfg.HTTPAddr,
-		Handler:      api.NewRouter(logger, pool, locationHandler, profileHandler),
+		Handler:      api.NewRouter(logger, pool, locationHandler, profileHandler, briefHandler),
 		ReadTimeout:  cfg.HTTPReadTimeout,
 		WriteTimeout: cfg.HTTPWriteTimeout,
 		IdleTimeout:  cfg.HTTPIdleTimeout,
