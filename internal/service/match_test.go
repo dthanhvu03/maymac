@@ -15,6 +15,12 @@ type fakeMatchStore struct {
 	upsertCalled  bool
 	createLeadErr error
 	leadCreated   bool
+
+	leadFrom          string
+	leadForTransErr   error
+	transitionLeadErr error
+	leadTransitioned  bool
+	gotLostReason     string
 }
 
 func (f *fakeMatchStore) BriefIDByToken(_ context.Context, _ string) (int64, error) {
@@ -38,6 +44,59 @@ func (f *fakeMatchStore) ListLeads(_ context.Context, _, _ int32) ([]domain.Lead
 	return nil, nil
 }
 func (f *fakeMatchStore) CountLeads(_ context.Context) (int64, error) { return 0, nil }
+func (f *fakeMatchStore) GetLeadForTransition(_ context.Context, _ string) (int64, string, error) {
+	if f.leadForTransErr != nil {
+		return 0, "", f.leadForTransErr
+	}
+	return 9, f.leadFrom, nil
+}
+func (f *fakeMatchStore) TransitionLead(_ context.Context, _ int64, _, _, _, lostReason string) error {
+	f.leadTransitioned = true
+	f.gotLostReason = lostReason
+	return f.transitionLeadErr
+}
+
+func TestMatchService_TransitionLead(t *testing.T) {
+	t.Run("hợp lệ created→sent", func(t *testing.T) {
+		store := &fakeMatchStore{leadFrom: domain.LeadStatusCreated}
+		svc := NewMatchService(store)
+		got, err := svc.TransitionLead(context.Background(), "tok", domain.LeadStatusSent, "", "")
+		if err != nil || got != domain.LeadStatusSent || !store.leadTransitioned {
+			t.Fatalf("got=%q err=%v done=%v", got, err, store.leadTransitioned)
+		}
+	})
+
+	t.Run("illegal created→won → 409 (ErrConflict), không đổi", func(t *testing.T) {
+		store := &fakeMatchStore{leadFrom: domain.LeadStatusCreated}
+		svc := NewMatchService(store)
+		_, err := svc.TransitionLead(context.Background(), "tok", domain.LeadStatusWon, "", "")
+		if !errors.Is(err, domain.ErrConflict) {
+			t.Fatalf("mong ErrConflict, nhận %v", err)
+		}
+		if store.leadTransitioned {
+			t.Error("không được transition khi illegal")
+		}
+	})
+
+	t.Run("lost thiếu reason → ValidationError", func(t *testing.T) {
+		store := &fakeMatchStore{leadFrom: domain.LeadStatusResponded}
+		svc := NewMatchService(store)
+		_, err := svc.TransitionLead(context.Background(), "tok", domain.LeadStatusLost, "", "")
+		var ve *ValidationError
+		if !errors.As(err, &ve) {
+			t.Fatalf("mong ValidationError, nhận %v", err)
+		}
+	})
+
+	t.Run("lost có reason → truyền reason xuống store", func(t *testing.T) {
+		store := &fakeMatchStore{leadFrom: domain.LeadStatusResponded}
+		svc := NewMatchService(store)
+		_, err := svc.TransitionLead(context.Background(), "tok", domain.LeadStatusLost, "", domain.LostReasonPriceMismatch)
+		if err != nil || store.gotLostReason != domain.LostReasonPriceMismatch {
+			t.Fatalf("err=%v gotReason=%q", err, store.gotLostReason)
+		}
+	})
+}
 
 func TestMatchService_CreateMatch_BadLevel(t *testing.T) {
 	store := &fakeMatchStore{briefID: 1}

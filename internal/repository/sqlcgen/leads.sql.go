@@ -22,6 +22,22 @@ func (q *Queries) CountLeads(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const getLeadByToken = `-- name: GetLeadByToken :one
+SELECT id, current_status FROM leads WHERE public_token = $1
+`
+
+type GetLeadByTokenRow struct {
+	ID            int64
+	CurrentStatus LeadStatus
+}
+
+func (q *Queries) GetLeadByToken(ctx context.Context, publicToken string) (GetLeadByTokenRow, error) {
+	row := q.db.QueryRow(ctx, getLeadByToken, publicToken)
+	var i GetLeadByTokenRow
+	err := row.Scan(&i.ID, &i.CurrentStatus)
+	return i, err
+}
+
 const insertLead = `-- name: InsertLead :one
 INSERT INTO leads (public_token, buyer_brief_id, profile_id, brief_match_id, current_status)
 VALUES ($1, $2, $3, $4, 'created')
@@ -120,4 +136,51 @@ func (q *Queries) ListLeads(ctx context.Context, arg ListLeadsParams) ([]ListLea
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateLeadStatus = `-- name: UpdateLeadStatus :execrows
+UPDATE leads SET
+  current_status    = $1::lead_status,
+  sent_at           = CASE WHEN $1::lead_status = 'sent'           AND sent_at           IS NULL THEN now() ELSE sent_at           END,
+  viewed_at         = CASE WHEN $1::lead_status = 'viewed'         AND viewed_at         IS NULL THEN now() ELSE viewed_at         END,
+  first_response_at = CASE WHEN $1::lead_status = 'responded'      AND first_response_at IS NULL THEN now() ELSE first_response_at END,
+  quoted_at         = CASE WHEN $1::lead_status = 'quoted'         AND quoted_at         IS NULL THEN now() ELSE quoted_at         END,
+  sample_started_at = CASE WHEN $1::lead_status = 'sample_started' AND sample_started_at IS NULL THEN now() ELSE sample_started_at END,
+  won_at            = CASE WHEN $1::lead_status = 'won'            AND won_at            IS NULL THEN now() ELSE won_at            END,
+  lost_at           = CASE WHEN $1::lead_status = 'lost'           AND lost_at           IS NULL THEN now() ELSE lost_at           END,
+  expired_at        = CASE WHEN $1::lead_status = 'expired'        AND expired_at        IS NULL THEN now() ELSE expired_at        END
+WHERE id = $2 AND current_status = $3::lead_status
+`
+
+type UpdateLeadStatusParams struct {
+	ToStatus   LeadStatus
+	ID         int64
+	FromStatus LeadStatus
+}
+
+// Atomic: chỉ đổi khi current_status đúng bằng from. 0 dòng = đã đổi (race) -> 409.
+// Set mốc timestamp tương ứng. Enum param cast ::lead_status (bắt buộc cho pgx bind).
+func (q *Queries) UpdateLeadStatus(ctx context.Context, arg UpdateLeadStatusParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateLeadStatus, arg.ToStatus, arg.ID, arg.FromStatus)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const upsertLeadOutcome = `-- name: UpsertLeadOutcome :exec
+INSERT INTO lead_outcomes (lead_id, lost_reason)
+VALUES ($1, $2)
+ON CONFLICT (lead_id) DO UPDATE SET lost_reason = EXCLUDED.lost_reason
+`
+
+type UpsertLeadOutcomeParams struct {
+	LeadID     int64
+	LostReason *LeadLostReason
+}
+
+// Ghi lý do mất lead (và các trường outcome khác sau này). Idempotent theo lead_id.
+func (q *Queries) UpsertLeadOutcome(ctx context.Context, arg UpsertLeadOutcomeParams) error {
+	_, err := q.db.Exec(ctx, upsertLeadOutcome, arg.LeadID, arg.LostReason)
+	return err
 }

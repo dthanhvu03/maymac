@@ -30,7 +30,11 @@ func NewRouter(logger *slog.Logger, pool *pgxpool.Pool, adminToken string, rateL
 	r := chi.NewRouter()
 
 	r.Use(chimw.RequestID)
-	r.Use(chimw.RealIP)
+	// KHÔNG dùng chimw.RealIP: nó ghi đè RemoteAddr từ X-Forwarded-For/X-Real-IP do
+	// client tự đặt, nên kẻ tấn công đổi header mỗi request là qua mặt rate limit (và
+	// brute-force token admin không giới hạn). Ở pilot (traffic trực tiếp, 1 instance)
+	// dùng thẳng TCP peer là đúng và không spoof được. Khi deploy SAU reverse proxy,
+	// thêm middleware RealIP theo trusted-proxy CIDR allowlist (xem decisions).
 	r.Use(apimw.RequestLogger(logger))
 	r.Use(apimw.Recoverer(logger))
 
@@ -79,6 +83,7 @@ func NewRouter(logger *slog.Logger, pool *pgxpool.Pool, adminToken string, rateL
 			admin.Get("/buyer-briefs/{token}/matches", h.Match.ListMatches)
 			admin.Post("/buyer-briefs/{token}/leads", h.Match.CreateLead)
 			admin.Get("/leads", h.Match.ListLeads)
+			admin.Post("/leads/{token}/transition", h.Match.TransitionLead)
 		})
 	})
 

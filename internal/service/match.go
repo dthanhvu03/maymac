@@ -16,6 +16,8 @@ type MatchStore interface {
 	CreateLead(ctx context.Context, briefID, profileID, matchID int64, publicToken string) error
 	ListLeads(ctx context.Context, limit, offset int32) ([]domain.LeadSummary, error)
 	CountLeads(ctx context.Context) (int64, error)
+	GetLeadForTransition(ctx context.Context, token string) (int64, string, error)
+	TransitionLead(ctx context.Context, id int64, from, to, note, lostReason string) error
 }
 
 type MatchService struct {
@@ -73,6 +75,32 @@ func (s *MatchService) CreateLead(ctx context.Context, briefToken string, profil
 		return domain.LeadCreateResult{}, err
 	}
 	return domain.LeadCreateResult{PublicToken: tok, Status: domain.LeadStatusCreated}, nil
+}
+
+// TransitionLead đổi trạng thái lead theo state machine §17.1. Trả trạng thái mới.
+// domain.ErrNotFound nếu token không có; domain.ErrConflict nếu transition không hợp lệ
+// hoặc đã đổi (race); *ValidationError nếu chuyển sang lost mà thiếu/sai lost_reason.
+func (s *MatchService) TransitionLead(ctx context.Context, token, toStatus, note, lostReason string) (string, error) {
+	id, from, err := s.store.GetLeadForTransition(ctx, token)
+	if err != nil {
+		return "", err
+	}
+	if !domain.CanTransitionLead(from, toStatus) {
+		return "", domain.ErrConflict
+	}
+
+	reasonToStore := ""
+	if toStatus == domain.LeadStatusLost {
+		if !domain.IsLeadLostReason(lostReason) {
+			return "", &ValidationError{Fields: map[string][]string{"lost_reason": {"bắt buộc khi lost, và phải là giá trị hợp lệ"}}}
+		}
+		reasonToStore = lostReason
+	}
+
+	if err := s.store.TransitionLead(ctx, id, from, toStatus, note, reasonToStore); err != nil {
+		return "", err
+	}
+	return toStatus, nil
 }
 
 func (s *MatchService) ListLeads(ctx context.Context, page, perPage int) (domain.LeadPage, error) {

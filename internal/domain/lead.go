@@ -16,6 +16,62 @@ const (
 	LeadStatusExpired       = "expired"
 )
 
+// leadTransitions là bản đồ chuyển trạng thái Lead hợp lệ (§17.1).
+// won/lost/expired là terminal.
+var leadTransitions = map[string][]string{
+	LeadStatusCreated:       {LeadStatusSent, LeadStatusLost},
+	LeadStatusSent:          {LeadStatusViewed, LeadStatusResponded, LeadStatusLost, LeadStatusExpired},
+	LeadStatusViewed:        {LeadStatusResponded, LeadStatusLost, LeadStatusExpired},
+	LeadStatusResponded:     {LeadStatusQuoted, LeadStatusLost, LeadStatusExpired},
+	LeadStatusQuoted:        {LeadStatusSampleStarted, LeadStatusWon, LeadStatusLost, LeadStatusExpired},
+	LeadStatusSampleStarted: {LeadStatusWon, LeadStatusLost, LeadStatusExpired},
+}
+
+// CanTransitionLead cho biết from -> to có hợp lệ theo state machine Lead không.
+func CanTransitionLead(from, to string) bool {
+	for _, allowed := range leadTransitions[from] {
+		if allowed == to {
+			return true
+		}
+	}
+	return false
+}
+
+func IsLeadStatus(s string) bool {
+	switch s {
+	case LeadStatusCreated, LeadStatusSent, LeadStatusViewed, LeadStatusResponded,
+		LeadStatusQuoted, LeadStatusSampleStarted, LeadStatusWon, LeadStatusLost, LeadStatusExpired:
+		return true
+	default:
+		return false
+	}
+}
+
+// Lý do mất lead (khớp enum lead_lost_reason).
+const (
+	LostReasonNoResponse          = "no_response"
+	LostReasonMOQMismatch         = "moq_mismatch"
+	LostReasonPriceMismatch       = "price_mismatch"
+	LostReasonDeadlineMismatch    = "deadline_mismatch"
+	LostReasonCapacityUnavailable = "capacity_unavailable"
+	LostReasonCapabilityMismatch  = "capability_mismatch"
+	LostReasonBuyerCancelled      = "buyer_cancelled"
+	LostReasonFactoryDeclined     = "factory_declined"
+	LostReasonSelectedOther       = "selected_other_factory"
+	LostReasonOther               = "other"
+)
+
+func IsLeadLostReason(s string) bool {
+	switch s {
+	case LostReasonNoResponse, LostReasonMOQMismatch, LostReasonPriceMismatch, LostReasonDeadlineMismatch,
+		LostReasonCapacityUnavailable, LostReasonCapabilityMismatch, LostReasonBuyerCancelled,
+		LostReasonFactoryDeclined, LostReasonSelectedOther, LostReasonOther:
+		return true
+	default:
+		return false
+	}
+}
+
 // LeadCreateResult trả về sau khi tạo lead.
 type LeadCreateResult struct {
 	PublicToken string
