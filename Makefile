@@ -28,8 +28,8 @@ fmt:              ## Format code
 lint:             ## Lint
 	@echo "TODO: golangci-lint / eslint"
 
-test:             ## Unit test
-	@echo "TODO: go test ./... ; (cd apps/web && pnpm test)"
+test:             ## Unit test (Go)
+	go test ./...
 
 test-integration: ## Integration test (cần DB)
 	@echo "TODO: go test -tags=integration ./..."
