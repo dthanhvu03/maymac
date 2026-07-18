@@ -57,12 +57,23 @@ func run() error {
 	briefSvc := service.NewBriefService(briefRepo)
 	briefHandler := handler.NewBriefHandler(briefSvc)
 
+	matchRepo := repository.NewMatchRepository(pool)
+	matchSvc := service.NewMatchService(matchRepo)
+	matchHandler := handler.NewMatchHandler(matchSvc)
+
 	rateLimiter := apimw.NewIPRateLimiter(cfg.PublicRateLimitRPM, cfg.PublicRateLimitBurst)
 	defer rateLimiter.Close()
 
+	handlers := api.Handlers{
+		Location: locationHandler,
+		Profile:  profileHandler,
+		Brief:    briefHandler,
+		Match:    matchHandler,
+	}
+
 	srv := &http.Server{
 		Addr:         cfg.HTTPAddr,
-		Handler:      api.NewRouter(logger, pool, cfg.AdminAPIToken, rateLimiter, locationHandler, profileHandler, briefHandler),
+		Handler:      api.NewRouter(logger, pool, cfg.AdminAPIToken, rateLimiter, handlers),
 		ReadTimeout:  cfg.HTTPReadTimeout,
 		WriteTimeout: cfg.HTTPWriteTimeout,
 		IdleTimeout:  cfg.HTTPIdleTimeout,

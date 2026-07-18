@@ -17,8 +17,16 @@ import (
 	apimw "github.com/dthanhvu03/maymac/internal/api/middleware"
 )
 
+// Handlers gom các handler để truyền vào router (tránh danh sách tham số dài).
+type Handlers struct {
+	Location *handler.LocationHandler
+	Profile  *handler.ProfileHandler
+	Brief    *handler.BriefHandler
+	Match    *handler.MatchHandler
+}
+
 // NewRouter trả về http.Handler đã gắn middleware, endpoint health và API.
-func NewRouter(logger *slog.Logger, pool *pgxpool.Pool, adminToken string, rateLimiter *apimw.IPRateLimiter, location *handler.LocationHandler, profiles *handler.ProfileHandler, briefs *handler.BriefHandler) http.Handler {
+func NewRouter(logger *slog.Logger, pool *pgxpool.Pool, adminToken string, rateLimiter *apimw.IPRateLimiter, h Handlers) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(chimw.RequestID)
@@ -57,16 +65,20 @@ func NewRouter(logger *slog.Logger, pool *pgxpool.Pool, adminToken string, rateL
 	r.Route("/api", func(api chi.Router) {
 		api.Use(apimw.RateLimit(rateLimiter))
 
-		api.Get("/provinces", location.ListProvinces)
-		api.Get("/profiles", profiles.List)
-		api.Get("/profiles/{slug}", profiles.Detail)
-		api.Post("/buyer-briefs", briefs.Submit)
+		api.Get("/provinces", h.Location.ListProvinces)
+		api.Get("/profiles", h.Profile.List)
+		api.Get("/profiles/{slug}", h.Profile.Detail)
+		api.Post("/buyer-briefs", h.Brief.Submit)
 
 		// Nhóm admin — bảo vệ bằng bearer token (fail-closed nếu chưa cấu hình).
 		api.Route("/admin", func(admin chi.Router) {
 			admin.Use(apimw.AdminAuth(adminToken))
-			admin.Get("/buyer-briefs", briefs.AdminList)
-			admin.Post("/buyer-briefs/{token}/transition", briefs.AdminTransition)
+			admin.Get("/buyer-briefs", h.Brief.AdminList)
+			admin.Post("/buyer-briefs/{token}/transition", h.Brief.AdminTransition)
+			admin.Post("/buyer-briefs/{token}/matches", h.Match.CreateMatch)
+			admin.Get("/buyer-briefs/{token}/matches", h.Match.ListMatches)
+			admin.Post("/buyer-briefs/{token}/leads", h.Match.CreateLead)
+			admin.Get("/leads", h.Match.ListLeads)
 		})
 	})
 
