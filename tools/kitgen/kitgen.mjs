@@ -13,6 +13,7 @@ import { validateConfig } from "./validate.mjs";
 import { applyBuild, classifyDrift } from "./apply.mjs";
 import { reconcileSettings } from "./settings-merge.mjs";
 import { hookHashes, HASHES_REL } from "./integrity.mjs";
+import { warnIfOldNode } from "./node-check.mjs";
 import { buildOutputs, collectRules, collectRoles, collectSkills, collectBuildWarnings, estimateTokenBudget, loadDoctorStrings, fmt } from "../../engine/emitter.mjs";
 
 // KIT_DIR = where the kit's sources live (engine/, profiles/) — relative to this file,
@@ -250,7 +251,8 @@ function runDoctor() {
 
 function main() {
   const mode = process.argv[2] || "build";
-  if (mode === "doctor") { process.exit(runDoctor()); }
+  if (mode === "doctor") { process.exit(runDoctor()); } // doctor reports the Node version itself
+  warnIfOldNode(); // build/check: a clear heads-up on an old Node, non-blocking
   const cfgPath = pp("kit.config.yaml");
   if (!existsSync(cfgPath)) {
     console.error(`No kit.config.yaml in ${PROJECT_DIR}. Run \`smkit init\` there first (or cd into the project).`);

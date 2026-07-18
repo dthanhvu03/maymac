@@ -12,6 +12,9 @@ import { fileURLToPath } from "node:url";
 import { createInterface } from "node:readline/promises";
 import { spawnSync } from "node:child_process";
 import { KNOWN_AGENTS } from "./validate.mjs"; // single source of truth for supported targets
+import { warnIfOldNode } from "./node-check.mjs";
+
+warnIfOldNode(); // clear heads-up if the dev machine's Node is below the tested floor
 
 // KIT_DIR = the kit's own files (profiles/, templates, kitgen). PROJECT_DIR = the
 // project being set up, where config + memory are written and the build runs.
@@ -326,12 +329,63 @@ storage/logs/*
 .smkit-backup/
 `;
 
-// Memory files + .gitignore are the user's own content — never clobber if they exist.
+// .gitattributes — keep text files LF on every OS. Without it, a Windows checkout can
+// rewrite the vendored hooks/config to CRLF, which trips the hook integrity check
+// (HOOKS_INTEGRITY_MISMATCH) and makes noisy diffs on a mixed Win/Mac team. Also marks
+// the generated agent config as generated so reviews collapse it.
+const gitattributes = `# Keep text LF on every OS (hooks/config are byte-compared for integrity).
+* text=auto eol=lf
+*.md   text eol=lf
+*.mjs  text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.mdc  text eol=lf
+
+# Generated agent config — on a merge conflict, rebuild (\`smkit build\`) instead of hand-editing.
+.claude/**   linguist-generated=true
+.cursor/**   linguist-generated=true
+.windsurf/** linguist-generated=true
+AGENTS.md    linguist-generated=true
+CLAUDE.md    linguist-generated=true
+`;
+
+// Starter CI (GitHub Actions): fail a PR if the committed agent config drifted from the
+// source, and run the kit health check — so a team stays on one version and in sync.
+// Only checks the kit; add your app's own tests separately. Safe to edit or delete.
+const kitCiWorkflow = `# Keeps the kit's generated config in sync across the team. Edit/remove freely.
+name: kit-check
+on:
+  pull_request:
+  push:
+    branches: [main, master, dev]
+jobs:
+  kit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Generated config is in sync with the source
+        run: node tools/kitgen/kitgen.mjs check
+      - name: Kit health check
+        run: node tools/kitgen/kitgen.mjs doctor
+`;
+
+// Memory files + .gitignore/.gitattributes + CI are the user's own content — never
+// clobber if they exist.
 let constitutionWritten = false;
-for (const [rel, content] of [[".kit/constitution.md", constitution], [".kit/decisions.md", decisionsSeed], [".gitignore", gitignore]]) {
+for (const [rel, content] of [
+  [".kit/constitution.md", constitution],
+  [".kit/decisions.md", decisionsSeed],
+  [".gitignore", gitignore],
+  [".gitattributes", gitattributes],
+  [".github/workflows/kit-check.yml", kitCiWorkflow],
+]) {
   const ex = existsSync(pp(rel));
   if (DRY) { log(ex ? "keep existing" : "would write", rel); continue; }
-  if (ex) { log("keep existing", rel); } else { writeFileSync(pp(rel), content); log("write", rel); if (rel === ".kit/constitution.md") constitutionWritten = true; }
+  if (ex) { log("keep existing", rel); }
+  else { mkdirSync(dirname(pp(rel)), { recursive: true }); writeFileSync(pp(rel), content); log("write", rel); if (rel === ".kit/constitution.md") constitutionWritten = true; }
 }
 
 // Stamp the installed kit version so `smkit update` knows the baseline to upgrade from.

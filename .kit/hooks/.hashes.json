@@ -6,7 +6,7 @@
     "consistency-guard.mjs": "sha256:ad38b7930d2bd29680dbfd87de7de394fd662fd99fd7cec4872cce39a3c9e072",
     "critique-gate.mjs": "sha256:54918b9cf9264c3566c3c7f6f09d587b097d2e45eb297cc1031ec6c0c4c7a859",
     "guard-shell.mjs": "sha256:484a7105058c7c3e035145a8cdaf3ccef6dc62daefba171131a22c05f52f4990",
-    "session-start.mjs": "sha256:1499323969fff120aaf9946f1c6645befdd3ba0727c4e4310c663096891ab907",
+    "session-start.mjs": "sha256:7cc0bcaba6461d380030826cfef536cce0ac43f335b5645a4aa94981330ecaa6",
     "yaml.mjs": "sha256:ae043512de27eafa5c99fa443648d552f1c42151f5ddfede51122c1dd9350bae"
   }
 }

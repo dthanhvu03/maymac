@@ -10,6 +10,9 @@ import { join, dirname, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createInterface } from "node:readline/promises";
 import { spawnSync } from "node:child_process";
+import { warnIfOldNode } from "./node-check.mjs";
+
+warnIfOldNode(); // clear heads-up if the dev machine's Node is below the tested floor
 
 // Never stack-trace at the user (same discipline as the rest of the CLI).
 process.on("uncaughtException", (e) => { console.error(`\nsmkit update: ${e?.message || e}`); process.exit(1); });

@@ -22,3 +22,5 @@ Record a decision so the whole project (and every future AI session) stays consi
    ```
 3. If this decision replaces an earlier one, mark the old entry `[status: superseded by <date/title>]` (don't delete history) and append the new one.
 4. Confirm in one sentence what was recorded.
+
+**Team option (avoid merge conflicts):** on a project with several people, a single append-only `.kit/decisions.md` collides when two people record decisions on parallel branches. Prefer **one file per decision** — `.kit/decisions/<YYYY-MM-DD>-<slug>.md` (same ADR fields as above). The session-start hook reads both `.kit/decisions.md` and every `.kit/decisions/*.md`, so the two styles coexist; a team just picks the per-file style and each decision lands in its own file (no shared-line conflicts).
